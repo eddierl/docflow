@@ -1,0 +1,25 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: docflow-postgres
+    environment:
+      POSTGRES_USER: docflow
+      POSTGRES_PASSWORD: docflow
+      POSTGRES_DB: docflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  floci:
+    image: floci/floci:latest
+    container_name: docflow-floci
+    ports:
+      - "4566:4566"
+
+
+volumes:
+
+  postgres_data:
