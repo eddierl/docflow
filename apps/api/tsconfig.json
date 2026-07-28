@@ -1,13 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-     "rootDir": "src",
+    "rootDir": ".",
+
     "outDir": "dist"
   },
-  "include": [
-    "src"
-  ]
-  ,  "references": [
+  "include": ["src", "drizzle.config.ts"],
+  "references": [
     {
       "path": "../../packages/shared"
     }
