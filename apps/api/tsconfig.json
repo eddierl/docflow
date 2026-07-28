@@ -5,7 +5,7 @@
 
     "outDir": "dist"
   },
-  "include": ["src", "drizzle.config.ts"],
+  "include": ["src"],
   "references": [
     {
       "path": "../../packages/shared"
