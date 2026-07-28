@@ -1,5 +1,9 @@
-import { hello, version } from "@docflow/shared";
+import { env } from "./config/env.js";
+import { buildApp } from "./server/app.js";
 
-console.log(version);
+const app = buildApp();
 
-console.log(hello("DocFlow"));
+await app.listen({
+  port: env.PORT,
+  host: "0.0.0.0",
+});

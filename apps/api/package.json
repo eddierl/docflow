@@ -2,7 +2,16 @@
   "name": "@docflow/api",
   "version": "0.1.0",
   "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
   "dependencies": {
-    "@docflow/shared": "workspace:*"
+    "@docflow/shared": "workspace:*",
+    "fastify": "^5.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.23.1"
   }
 }
