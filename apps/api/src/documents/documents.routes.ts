@@ -19,16 +19,10 @@ export async function documentsRoutes(app: FastifyInstance) {
 
 		await uploadFile(key, buffer, file.mimetype);
 
+
+
 		const document = await createDocument({
 			filename: file.filename,
-			storageKey: key,
-		});
-
-		if (!document) {
-			return reply.status(500).send("something went wrong");
-		}
-		await enqueueDocumentProcessing({
-			documentId: document.id,
 			storageKey: key,
 		});
 

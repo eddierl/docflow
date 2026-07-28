@@ -5,7 +5,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {},
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
   "dependencies": {
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.44.0",
