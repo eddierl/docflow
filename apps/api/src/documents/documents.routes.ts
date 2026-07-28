@@ -1,54 +1,37 @@
 import type { FastifyInstance } from "fastify";
+import { enqueueDocumentProcessing } from "../queue/document.queue.js";
+import { uploadFile } from "../storage/storage.service.js";
+import { createDocument } from "./documents.service.js";
 
-import {
-  uploadFile,
-} from "../storage/storage.service.js";
+export async function documentsRoutes(app: FastifyInstance) {
+	app.post("/documents", async (request, reply) => {
+		const file = await request.file();
 
-import {
-  createDocument,
-} from "./documents.service.js";
+		if (!file) {
+			return reply.status(400).send({
+				error: "File required",
+			});
+		}
 
+		const buffer = await file.toBuffer();
 
-export async function documentsRoutes(
-  app: FastifyInstance
-) {
+		const key = `uploads/${Date.now()}-${file.filename}`;
 
-  app.post("/documents", async (request, reply) => {
+		await uploadFile(key, buffer, file.mimetype);
 
-    const file = await request.file();
+		const document = await createDocument({
+			filename: file.filename,
+			storageKey: key,
+		});
 
+		if (!document) {
+			return reply.status(500).send("something went wrong");
+		}
+		await enqueueDocumentProcessing({
+			documentId: document.id,
+			storageKey: key,
+		});
 
-    if (!file) {
-      return reply
-        .status(400)
-        .send({
-          error: "File required",
-        });
-    }
-
-
-    const buffer = await file.toBuffer();
-
-
-    const key =
-      `uploads/${Date.now()}-${file.filename}`;
-
-
-    await uploadFile(
-      key,
-      buffer,
-      file.mimetype,
-    );
-
-
-    const document =
-      await createDocument({
-        filename: file.filename,
-        storageKey: key,
-      });
-
-
-    return reply.status(201).send(document);
-  });
-
+		return reply.status(201).send(document);
+	});
 }
