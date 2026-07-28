@@ -1,0 +1,8 @@
+{
+  "name": "@docflow/worker",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@docflow/shared": "workspace:*"
+  }
+}
