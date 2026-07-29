@@ -17,4 +17,14 @@ test("uploads a document", async ({ request }) => {
   expect(document.id).toBeDefined();
   expect(document.filename).toBe("test.txt");
   expect(document.status).toBe("UPLOADED");
+
+  await expect
+    .poll(async () => {
+      const result = await request.get(`/documents/${document.id}`);
+
+      const body = await result.json();
+
+      return body.status;
+    })
+    .toBe("UPLOADED");
 });

@@ -1,5 +1,5 @@
 import { db, documents, outboxEvents } from "@docflow/database";
-
+import { eq } from "drizzle-orm";
 export async function createDocument(input: {
   filename: string;
   storageKey: string;
@@ -31,4 +31,13 @@ export async function createDocument(input: {
   });
 
   return result;
+}
+
+export async function getDocument(id: string) {
+  const [document] = await db
+    .select()
+    .from(documents)
+    .where(eq(documents.id, id));
+
+  return document;
 }
