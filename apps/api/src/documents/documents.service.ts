@@ -1,5 +1,4 @@
-import { db,documents, outboxEvents } from "@docflow/database";
-
+import { db, documents, outboxEvents } from "@docflow/database";
 
 export async function createDocument(input: {
   filename: string;

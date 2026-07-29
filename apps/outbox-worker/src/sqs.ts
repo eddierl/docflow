@@ -1,5 +1,5 @@
 import { SQSClient } from "@aws-sdk/client-sqs";
-import "./bootstrap.js"
+import "./bootstrap.js";
 
 import { env } from "./config/env.js";
 
@@ -13,4 +13,3 @@ export const sqs = new SQSClient({
     secretAccessKey: "test",
   },
 });
-
