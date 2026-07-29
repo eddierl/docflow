@@ -1,6 +1,6 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 import { sqs } from "@docflow/aws";
-
+import { awsEnv } from "@docflow/config";
 import { db, outboxEvents } from "@docflow/database";
 import { parseEvent } from "@docflow/events";
 import { eq } from "drizzle-orm";
@@ -13,7 +13,7 @@ export async function publishPendingEvents() {
 
   for (const event of events) {
     console.log("Sending to SQS", {
-      queue: process.env.SQS_QUEUE_URL,
+      queue: awsEnv.SQS_QUEUE_URL,
       event: event.id,
     });
 
@@ -25,7 +25,7 @@ export async function publishPendingEvents() {
 
     await sqs.send(
       new SendMessageCommand({
-        QueueUrl: process.env.SQS_QUEUE_URL,
+        QueueUrl: awsEnv.SQS_QUEUE_URL,
         MessageBody: JSON.stringify(validatedEvent),
       }),
     );

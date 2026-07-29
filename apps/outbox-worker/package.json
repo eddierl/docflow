@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1095.0",
     "@docflow/aws": "workspace:*",
+    "@docflow/config": "workspace:*",
     "@docflow/database": "workspace:*",
     "@docflow/events": "workspace:*",
     "dotenv": "^17.4.2",

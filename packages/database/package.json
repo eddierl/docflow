@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@docflow/config": "workspace:*",
     "@docflow/events": "workspace:*",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

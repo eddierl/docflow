@@ -1,15 +1,8 @@
-import "dotenv/config";
-import dotenv from "dotenv";
-
-dotenv.config({
-  path: "../../.env",
-});
-
+import { dbSchema } from "@docflow/config";
 import { z } from "zod";
 
-const envSchema = z.object({
+export const apiEnvSchema = dbSchema.extend({
   PORT: z.coerce.number().default(3000),
-  DATABASE_URL: z.url(),
 });
 
-export const env = envSchema.parse(process.env);
+export const env = apiEnvSchema.parse(process.env);

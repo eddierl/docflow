@@ -1,3 +1,4 @@
+import "./bootstrap.js";
 import { env } from "./config/env.js";
 import { buildApp } from "./server/app.js";
 

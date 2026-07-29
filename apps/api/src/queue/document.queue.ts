@@ -1,7 +1,6 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 import { sqs } from "@docflow/aws";
-
-const QUEUE_URL = process.env.SQS_QUEUE_URL!;
+import { awsEnv } from "@docflow/config";
 
 export async function enqueueDocumentProcessing(message: {
   documentId: string;
@@ -9,7 +8,7 @@ export async function enqueueDocumentProcessing(message: {
 }) {
   await sqs.send(
     new SendMessageCommand({
-      QueueUrl: QUEUE_URL,
+      QueueUrl: awsEnv.SQS_QUEUE_URL,
 
       MessageBody: JSON.stringify(message),
     }),

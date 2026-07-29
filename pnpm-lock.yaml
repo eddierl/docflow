@@ -231,6 +231,9 @@ importers:
       '@docflow/aws':
         specifier: workspace:*
         version: link:../../packages/aws
+      '@docflow/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@docflow/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -283,6 +286,9 @@ importers:
       '@docflow/aws':
         specifier: workspace:*
         version: link:../../packages/aws
+      '@docflow/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@docflow/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -314,6 +320,9 @@ importers:
       '@docflow/aws':
         specifier: workspace:*
         version: link:../../packages/aws
+      '@docflow/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@docflow/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -345,9 +354,21 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.x
         version: 3.1095.0
+      '@docflow/config':
+        specifier: workspace:*
+        version: link:../config
+
+  packages/config:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   packages/database:
     dependencies:
+      '@docflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@docflow/events':
         specifier: workspace:*
         version: link:../events

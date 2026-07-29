@@ -3,9 +3,9 @@ import {
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
 import { sqs } from "@docflow/aws";
+import { awsEnv } from "@docflow/config";
 import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
-import { env } from "../config/env.js";
 
 export async function startConsumer() {
   console.log("Worker listening...");
@@ -13,7 +13,7 @@ export async function startConsumer() {
   while (true) {
     const response = await sqs.send(
       new ReceiveMessageCommand({
-        QueueUrl: env.SQS_QUEUE_URL,
+        QueueUrl: awsEnv.SQS_QUEUE_URL,
 
         MaxNumberOfMessages: 1,
 
@@ -42,7 +42,7 @@ export async function startConsumer() {
 
       await sqs.send(
         new DeleteMessageCommand({
-          QueueUrl: env.SQS_QUEUE_URL,
+          QueueUrl: awsEnv.SQS_QUEUE_URL,
 
           ReceiptHandle: message.ReceiptHandle!,
         }),
