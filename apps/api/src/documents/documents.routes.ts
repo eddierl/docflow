@@ -1,7 +1,7 @@
+import { getDocument } from "@docflow/database";
 import type { FastifyInstance } from "fastify";
-
 import { uploadFile } from "../storage/storage.service.js";
-import { createDocument, getDocument } from "./documents.service.js";
+import { createDocument } from "./documents.service.js";
 
 export async function documentsRoutes(app: FastifyInstance) {
   app.get("/documents/:id", async (request, reply) => {

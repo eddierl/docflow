@@ -12,7 +12,6 @@ export async function publishPendingEvents() {
     .where(eq(outboxEvents.status, "PENDING"));
 
   for (const event of events) {
-    console.log("Publishing event", event.id, process.env.SQS_QUEUE_URL);
     console.log("Sending to SQS", {
       queue: process.env.SQS_QUEUE_URL,
       event: event.id,
