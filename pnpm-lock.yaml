@@ -320,6 +320,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1095.0
+        version: 3.1095.0
       '@aws-sdk/client-sqs':
         specifier: ^3.1095.0
         version: 3.1095.0
@@ -360,6 +363,9 @@ importers:
 
   packages/aws:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1095.0
+        version: 3.1095.0
       '@aws-sdk/client-sqs':
         specifier: ^3.x
         version: 3.1095.0
