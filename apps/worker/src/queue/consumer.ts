@@ -2,6 +2,7 @@ import {
   DeleteMessageCommand,
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
+import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { env } from "../config/env.js";
 import { sqs } from "./sqs.js";
 
@@ -22,9 +23,21 @@ export async function startConsumer() {
     const messages = response.Messages ?? [];
 
     for (const message of messages) {
+      if (!message.Body) {
+        console.error("Something bad has happens", { message });
+        break;
+      }
+
       console.log("Received:", message.Body);
 
-      await processMessage(message.Body!);
+      const raw = JSON.parse(message.Body);
+      const validatedEvent = parseEvent(raw);
+
+      switch (validatedEvent.eventType) {
+        case "DOCUMENT_UPLOADED":
+          await handleDocumentUploaded(validatedEvent);
+          break;
+      }
 
       await sqs.send(
         new DeleteMessageCommand({
@@ -37,8 +50,6 @@ export async function startConsumer() {
   }
 }
 
-async function processMessage(body: string) {
-  const payload = JSON.parse(body);
-
-  console.log("Processing document:", payload.documentId);
+async function handleDocumentUploaded(document: DocumentUploadedEvent) {
+  console.debug("debug: document", { document });
 }

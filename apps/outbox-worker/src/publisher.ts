@@ -1,11 +1,11 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 
 import { db, outboxEvents } from "@docflow/database";
+import { parseEvent } from "@docflow/events";
 import { eq } from "drizzle-orm";
-
 import { sqs } from "./sqs.js";
 
-export async function publishEvents() {
+export async function publishPendingEvents() {
   const events = await db
     .select()
     .from(outboxEvents)
@@ -17,18 +17,20 @@ export async function publishEvents() {
       queue: process.env.SQS_QUEUE_URL,
       event: event.id,
     });
-    const r = await sqs.send(
+
+    const message = {
+      eventType: event.type,
+      payload: event.payload,
+    };
+    const validatedEvent = parseEvent(message);
+
+    await sqs.send(
       new SendMessageCommand({
         QueueUrl: process.env.SQS_QUEUE_URL,
-
-        MessageBody: JSON.stringify({
-          type: event.type,
-          ...event.payload,
-        }),
+        MessageBody: JSON.stringify(validatedEvent),
       }),
     );
     console.log("SQS send completed", event.id);
-    console.log("SQS response", r);
 
     await db
       .update(outboxEvents)

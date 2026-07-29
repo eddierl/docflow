@@ -1,3 +1,4 @@
+import type { EventType } from "@docflow/events";
 import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const documents = pgTable("documents", {
@@ -17,14 +18,9 @@ export const documents = pgTable("documents", {
 export const outboxEvents = pgTable("outbox_events", {
   id: uuid("id").defaultRandom().primaryKey(),
 
-  type: text("type").notNull(),
+  type: text("type").$type<EventType>().notNull(),
 
-  payload: jsonb("payload")
-    .$type<{
-      documentId: string;
-      storageKey: string;
-    }>()
-    .notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
 
   status: text("status")
     .$type<"PENDING" | "SENT">()

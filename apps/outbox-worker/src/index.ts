@@ -1,9 +1,9 @@
 import "./bootstrap.js";
 
-import { publishEvents } from "./publisher.js";
+import { publishPendingEvents } from "./publisher.js";
 
 console.log("Outbox worker started");
 
 setInterval(async () => {
-  await publishEvents();
+  await publishPendingEvents();
 }, 5000);
