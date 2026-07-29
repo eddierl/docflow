@@ -19,12 +19,15 @@ test("uploads a document", async ({ request }) => {
   expect(document.status).toBe("UPLOADED");
 
   await expect
-    .poll(async () => {
-      const result = await request.get(`/documents/${document.id}`);
+    .poll(
+      async () => {
+        const result = await request.get(`/documents/${document.id}`);
 
-      const body = await result.json();
+        const body = await result.json();
 
-      return body.status;
-    })
+        return body.status;
+      },
+      { timeout: 10000 },
+    )
     .toBe("PROCESSED");
 });

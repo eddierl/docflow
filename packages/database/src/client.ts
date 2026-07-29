@@ -11,8 +11,6 @@ export const db = drizzle(client, {
   schema,
 });
 
-export function createDatabase(url: string) {
-  const client = postgres(url);
-
-  return drizzle(client);
+export async function closeDatabase() {
+  await client.end();
 }

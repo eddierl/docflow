@@ -8,10 +8,16 @@ import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
 
+let running = true;
+
+export function stopConsumer() {
+  running = false;
+}
+
 export async function startConsumer() {
   logger.info("Worker listening...");
 
-  while (true) {
+  while (running) {
     const response = await sqs.send(
       new ReceiveMessageCommand({
         QueueUrl: awsEnv.SQS_QUEUE_URL,
