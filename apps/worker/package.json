@@ -12,6 +12,7 @@
     "@docflow/config": "workspace:*",
     "@docflow/database": "workspace:*",
     "@docflow/events": "workspace:*",
+    "@docflow/logger": "workspace:*",
     "@docflow/shared": "workspace:*",
     "dotenv": "^17.4.2",
     "zod": "^4.4.3"

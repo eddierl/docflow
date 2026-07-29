@@ -1,10 +1,10 @@
+import { logger } from "@docflow/logger";
 import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import { documentsRoutes } from "../documents/documents.routes.js";
-
 export function buildApp() {
   const app = Fastify({
-    logger: true,
+    loggerInstance: logger,
   });
 
   app.get("/health", async () => {

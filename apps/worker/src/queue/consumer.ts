@@ -6,9 +6,10 @@ import { sqs } from "@docflow/aws";
 import { awsEnv } from "@docflow/config";
 import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
+import { logger } from "@docflow/logger";
 
 export async function startConsumer() {
-  console.log("Worker listening...");
+  logger.info("Worker listening...");
 
   while (true) {
     const response = await sqs.send(
@@ -25,11 +26,11 @@ export async function startConsumer() {
 
     for (const message of messages) {
       if (!message.Body) {
-        console.error("Something bad has happens", { message });
+        logger.error({ message }, "Something bad has happens");
         break;
       }
 
-      console.log("Received:", message.Body);
+      logger.info(message, "Received:");
 
       const raw = JSON.parse(message.Body);
       const validatedEvent = parseEvent(raw);

@@ -3,6 +3,7 @@ import { sqs } from "@docflow/aws";
 import { awsEnv } from "@docflow/config";
 import { db, outboxEvents } from "@docflow/database";
 import { parseEvent } from "@docflow/events";
+import { logger } from "@docflow/logger";
 import { eq } from "drizzle-orm";
 
 export async function publishPendingEvents() {
@@ -12,10 +13,13 @@ export async function publishPendingEvents() {
     .where(eq(outboxEvents.status, "PENDING"));
 
   for (const event of events) {
-    console.log("Sending to SQS", {
-      queue: awsEnv.SQS_QUEUE_URL,
-      event: event.id,
-    });
+    logger.info(
+      {
+        queue: awsEnv.SQS_QUEUE_URL,
+        event: event.id,
+      },
+      "Sending to SQS",
+    );
 
     const message = {
       eventType: event.type,
@@ -29,7 +33,7 @@ export async function publishPendingEvents() {
         MessageBody: JSON.stringify(validatedEvent),
       }),
     );
-    console.log("SQS send completed", event.id);
+    logger.info({ id: event.id }, "SQS send completed");
 
     await db
       .update(outboxEvents)

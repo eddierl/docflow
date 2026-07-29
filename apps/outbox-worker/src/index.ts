@@ -1,8 +1,9 @@
+import { logger } from "@docflow/logger";
 import "./bootstrap.js";
 
 import { publishPendingEvents } from "./publisher.js";
 
-console.log("Outbox worker started");
+logger.info("Outbox worker started");
 
 setInterval(async () => {
   await publishPendingEvents();

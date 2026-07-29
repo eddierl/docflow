@@ -11,6 +11,7 @@
     "@aws-sdk/client-sqs": "^3.1095.0",
     "@docflow/aws": "workspace:*",
     "@docflow/config": "workspace:*",
+    "@docflow/logger": "workspace:*",
     "@docflow/database": "workspace:*",
     "@docflow/shared": "workspace:*",
     "@fastify/multipart": "^10.1.0",

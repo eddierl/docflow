@@ -1,8 +1,8 @@
 import "./bootstrap.js";
 import { awsEnv } from "@docflow/config";
-
+import { logger } from "@docflow/logger";
 import { startConsumer } from "./queue/consumer.js";
 
-console.log("SQS:", awsEnv.SQS_QUEUE_URL);
+logger.info({ url: awsEnv.SQS_QUEUE_URL }, "SQS");
 
 await startConsumer();
