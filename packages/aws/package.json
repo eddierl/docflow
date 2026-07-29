@@ -1,0 +1,11 @@
+{
+  "name": "@docflow/aws",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.x"
+  }
+}

@@ -2,10 +2,10 @@ import {
   DeleteMessageCommand,
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
+import { sqs } from "@docflow/aws";
 import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { env } from "../config/env.js";
-import { sqs } from "./sqs.js";
 
 export async function startConsumer() {
   console.log("Worker listening...");

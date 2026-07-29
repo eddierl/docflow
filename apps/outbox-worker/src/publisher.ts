@@ -1,9 +1,9 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
+import { sqs } from "@docflow/aws";
 
 import { db, outboxEvents } from "@docflow/database";
 import { parseEvent } from "@docflow/events";
 import { eq } from "drizzle-orm";
-import { sqs } from "./sqs.js";
 
 export async function publishPendingEvents() {
   const events = await db

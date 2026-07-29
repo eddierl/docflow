@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1095.0",
+    "@docflow/aws": "workspace:*",
     "@docflow/database": "workspace:*",
     "@docflow/events": "workspace:*",
     "@docflow/shared": "workspace:*",

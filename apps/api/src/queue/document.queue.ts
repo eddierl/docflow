@@ -1,6 +1,5 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
-
-import { sqs } from "./sqs.js";
+import { sqs } from "@docflow/aws";
 
 const QUEUE_URL = process.env.SQS_QUEUE_URL!;
 
