@@ -1,7 +1,20 @@
 import { expect, test } from "@playwright/test";
+import { uploadDocument } from "./helpers/documents.js";
 
 test("api is alive", async ({ request }) => {
   const response = await request.get("/health");
 
   expect(response.ok()).toBeTruthy();
+});
+
+test("uploads a document", async ({ request }) => {
+  const response = await uploadDocument(request);
+
+  expect(response.status()).toBe(201);
+
+  const document = await response.json();
+
+  expect(document.id).toBeDefined();
+  expect(document.filename).toBe("test.txt");
+  expect(document.status).toBe("UPLOADED");
 });
