@@ -8,7 +8,9 @@ export const documents = pgTable("documents", {
 
   storageKey: text("storage_key").notNull(),
 
-  status: text("status").notNull(),
+  status: text("status")
+    .$type<"UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED">()
+    .notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 

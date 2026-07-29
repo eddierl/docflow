@@ -26,5 +26,5 @@ test("uploads a document", async ({ request }) => {
 
       return body.status;
     })
-    .toBe("UPLOADED");
+    .toBe("PROCESSED");
 });

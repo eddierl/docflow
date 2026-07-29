@@ -2,6 +2,7 @@ import {
   DeleteMessageCommand,
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
+import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { env } from "../config/env.js";
 import { sqs } from "./sqs.js";
@@ -50,6 +51,15 @@ export async function startConsumer() {
   }
 }
 
-async function handleDocumentUploaded(document: DocumentUploadedEvent) {
-  console.debug("debug: document", { document });
+export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
+  await updateDocumentStatus(event.payload.documentId, {
+    status: "PROCESSING",
+  });
+
+  // TODO: process the document.
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  await updateDocumentStatus(event.payload.documentId, {
+    status: "PROCESSED",
+  });
 }
