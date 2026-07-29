@@ -4,7 +4,21 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    
+    "infra": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "infra:reset": "docker compose down -v",
+    
+    "terraform:init": "terraform -chdir=terraform init",
+    "terraform:plan": "terraform -chdir=terraform plan",
+    "terraform:apply": "terraform -chdir=terraform apply",
+
+    "db:migrate": "pnpm --filter @docflow/database db:migrate"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +33,7 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "turbo": "^2.10.7",
     "typescript": "^7.0.2"
   }
 }
