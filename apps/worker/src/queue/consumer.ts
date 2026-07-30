@@ -9,6 +9,7 @@ import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
 import { PDFParse } from "pdf-parse";
+import { extractTextFromImage } from "./ocr.js";
 
 let running = true;
 
@@ -77,8 +78,15 @@ export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
     const pdfBuffer = await response.Body?.transformToByteArray();
 
     if (pdfBuffer) {
-      const data = new PDFParse(pdfBuffer);
-      const extractedText = (await data.getText()).text;
+      const extractedText = await getExtractText(pdfBuffer);
+      await updateDocumentStatus(event.payload.documentId, {
+        extractedText,
+      });
+    }
+  } else if (response.ContentType === "image/png") {
+    const buffer = await response.Body?.transformToByteArray();
+    if (buffer) {
+      const extractedText = await extractTextFromImage(Buffer.from(buffer));
       await updateDocumentStatus(event.payload.documentId, {
         extractedText,
       });
@@ -92,3 +100,9 @@ export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
     status: "PROCESSED",
   });
 }
+
+const getExtractText = async (pdfBuffer: Uint8Array) => {
+  const data = new PDFParse(pdfBuffer);
+  const extracted = await data.getText();
+  return extracted.text.trim();
+};

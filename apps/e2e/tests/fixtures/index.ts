@@ -12,9 +12,9 @@ export const Fixtures = {
     mimeType: "application/pdf",
   },
 
-  scannedPdf: {
-    file: "pdf/scanned.pdf",
-    mimeType: "application/pdf",
+  scannedImage: {
+    file: "image/scanned.png",
+    mimeType: "image/png",
   },
 
   invoiceImage: {

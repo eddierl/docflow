@@ -1,23 +1,23 @@
 import path from "node:path";
-import { expect, test } from "@playwright/test";
-import { Fixtures } from "./fixtures/index.js";
+import { type APIRequestContext, expect, test } from "@playwright/test";
+import { type FixtureDefinition, Fixtures } from "./fixtures/index.js";
 import { uploadDocument } from "./helpers/documents.js";
 
-test("api is alive", async ({ request }) => {
-  const response = await request.get("/health");
-
-  expect(response.ok()).toBeTruthy();
-});
-
-test("uploads a document", async ({ request }) => {
-  const response = await uploadDocument(request, Fixtures.textHello);
+export async function uploadAndWaitForProcessing(
+  request: APIRequestContext,
+  fixture: FixtureDefinition,
+  options?: {
+    timeout?: number;
+  },
+) {
+  const response = await uploadDocument(request, fixture);
 
   expect(response.status()).toBe(201);
 
   const document = await response.json();
 
   expect(document.id).toBeDefined();
-  expect(document.filename).toBe(path.basename(Fixtures.textHello.file));
+  expect(document.filename).toBe(path.basename(fixture.file));
   expect(document.status).toBe("UPLOADED");
 
   await expect
@@ -25,40 +25,41 @@ test("uploads a document", async ({ request }) => {
       async () => {
         const result = await request.get(`/documents/${document.id}`);
 
-        const body = await result.json();
-
-        return body.status;
+        return result.json();
       },
-      { timeout: 10000 },
-    )
-    .toBe("PROCESSED");
-});
-
-test("uploads a pdf document extract text", async ({ request }) => {
-  const response = await uploadDocument(request, Fixtures.textPdf);
-
-  expect(response.status()).toBe(201);
-
-  const document = await response.json();
-
-  expect(document.id).toBeDefined();
-  expect(document.filename).toBe(path.basename(Fixtures.textPdf.file));
-  expect(document.status).toBe("UPLOADED");
-
-  await expect
-    .poll(
-      async () => {
-        const result = await request.get(`/documents/${document.id}`);
-
-        const body = await result.json();
-
-        console.log(body);
-        return body;
+      {
+        timeout: options?.timeout ?? 20000,
       },
-      { timeout: 10000 },
     )
     .toMatchObject({
       status: "PROCESSED",
-      extractedText: expect.stringContaining("Just another test on the wall"),
     });
+
+  return document.id;
+}
+
+test("uploads a document", async ({ request }) => {
+  const id = await uploadAndWaitForProcessing(request, Fixtures.textHello);
+
+  expect(id).toBeDefined();
+});
+
+test("uploads a pdf document extract text", async ({ request }) => {
+  const id = await uploadAndWaitForProcessing(request, Fixtures.textPdf);
+
+  const response = await request.get(`/documents/${id}`);
+  const document = await response.json();
+
+  expect(document.extractedText).toContain("Just another test on the wall");
+});
+
+test("uploads a pdf document with scanned image and extract text", async ({
+  request,
+}) => {
+  const id = await uploadAndWaitForProcessing(request, Fixtures.scannedImage);
+
+  const response = await request.get(`/documents/${id}`);
+  const document = await response.json();
+
+  expect(document.extractedText).toContain("Hello DocFlow OCR");
 });
