@@ -23,6 +23,27 @@ describe("document claim", () => {
     expect(successfulClaims).toHaveLength(1);
   });
 
+  it("allows reclaim a document", async () => {
+    const [document] = await db
+      .insert(documents)
+      .values({
+        filename: "test.pdf",
+        storageKey: "uploads/test.pdf",
+        status: "PROCESSING",
+        processedAt: new Date(Date.now() - 20 * 60 * 1000),
+      })
+      .returning();
+
+    const results = await Promise.all([
+      claimDocument(document.id),
+      claimDocument(document.id),
+    ]);
+
+    const successfulClaims = results.filter(Boolean);
+
+    expect(successfulClaims).toHaveLength(1);
+  });
+
   it("does not claim a processed document", async () => {
     const [document] = await db
       .insert(documents)
