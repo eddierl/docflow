@@ -8,7 +8,7 @@ export const Fixtures = {
     mimeType: "text/plain",
   },
   textPdf: {
-    file: "pdf/text.pdf",
+    file: "pdf/Just another test on the wall.pdf",
     mimeType: "application/pdf",
   },
 

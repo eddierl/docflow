@@ -33,3 +33,32 @@ test("uploads a document", async ({ request }) => {
     )
     .toBe("PROCESSED");
 });
+
+test("uploads a pdf document extract text", async ({ request }) => {
+  const response = await uploadDocument(request, Fixtures.textPdf);
+
+  expect(response.status()).toBe(201);
+
+  const document = await response.json();
+
+  expect(document.id).toBeDefined();
+  expect(document.filename).toBe(path.basename(Fixtures.textPdf.file));
+  expect(document.status).toBe("UPLOADED");
+
+  await expect
+    .poll(
+      async () => {
+        const result = await request.get(`/documents/${document.id}`);
+
+        const body = await result.json();
+
+        console.log(body);
+        return body;
+      },
+      { timeout: 10000 },
+    )
+    .toMatchObject({
+      status: "PROCESSED",
+      extractedText: expect.stringContaining("Just another test on the wall"),
+    });
+});
