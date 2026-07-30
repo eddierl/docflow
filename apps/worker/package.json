@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:test:migrate": "dotenv -e .env.test -- pn --filter @docflow/database exec drizzle-kit migrate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1095.0",
@@ -22,7 +24,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-orm": "^0.45.2",
     "tsx": "^4.0.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

@@ -9,6 +9,7 @@ import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
 import { PDFParse } from "pdf-parse";
+import { claimDocument } from "../document-claim.js";
 import { extractTextFromImage } from "./ocr.js";
 
 let running = true;
@@ -64,9 +65,19 @@ export async function startConsumer() {
 const BUCKET = "docflow-uploads";
 
 export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
-  await updateDocumentStatus(event.payload.documentId, {
-    status: "PROCESSING",
-  });
+  const { documentId } = event.payload;
+  const document = await claimDocument(documentId);
+
+  if (!document) {
+    logger.info(
+      {
+        documentId: event.payload.documentId,
+      },
+      "Document already claimed",
+    );
+
+    return;
+  }
 
   const command = new GetObjectCommand({
     Bucket: BUCKET,
