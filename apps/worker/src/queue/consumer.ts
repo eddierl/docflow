@@ -9,7 +9,7 @@ import { updateDocumentStatus } from "@docflow/database";
 import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
 import { PDFParse } from "pdf-parse";
-import { claimDocument } from "../document-claim.js";
+import { claimDocument, handleProcessingError } from "../document-claim.js";
 import { extractTextFromImage } from "./ocr.js";
 
 let running = true;
@@ -45,10 +45,16 @@ export async function startConsumer() {
       const raw = JSON.parse(message.Body);
       const validatedEvent = parseEvent(raw);
 
-      switch (validatedEvent.eventType) {
-        case "DOCUMENT_UPLOADED":
-          await handleDocumentUploaded(validatedEvent);
-          break;
+      try {
+        switch (validatedEvent.eventType) {
+          case "DOCUMENT_UPLOADED":
+            await handleDocumentUploaded(validatedEvent);
+            break;
+        }
+      } catch (error) {
+        await handleProcessingError(validatedEvent.payload.documentId, error);
+
+        throw error;
       }
 
       await sqs.send(

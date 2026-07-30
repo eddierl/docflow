@@ -1,5 +1,12 @@
 import type { EventType } from "@docflow/events";
-import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const documents = pgTable("documents", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -17,6 +24,9 @@ export const documents = pgTable("documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
   processedAt: timestamp("processed_at"),
+  retryCount: integer("retry_count").notNull().default(0),
+
+  lastError: text("last_error"),
 });
 
 export const outboxEvents = pgTable("outbox_events", {
