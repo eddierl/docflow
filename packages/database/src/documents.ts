@@ -14,7 +14,10 @@ export async function getDocument(id: string) {
 
 export async function updateDocumentStatus(
   id: string,
-  data: { status: typeof documents.$inferSelect.status },
+  data: {
+    status?: typeof documents.$inferSelect.status;
+    extractedText?: typeof documents.$inferSelect.extractedText;
+  },
 ) {
   const [document] = await db
     .update(documents)

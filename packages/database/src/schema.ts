@@ -12,6 +12,8 @@ export const documents = pgTable("documents", {
     .$type<"UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED">()
     .notNull(),
 
+  extractedText: text("extracted_text"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
   processedAt: timestamp("processed_at"),

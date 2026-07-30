@@ -16,6 +16,7 @@
     "@docflow/logger": "workspace:*",
     "@docflow/shared": "workspace:*",
     "dotenv": "^17.4.2",
+    "pdf-parse": "^2.4.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
