@@ -1,125 +1,55 @@
-import { GetObjectCommand } from "@aws-sdk/client-s3";
-import {
-  DeleteMessageCommand,
-  ReceiveMessageCommand,
-} from "@aws-sdk/client-sqs";
-import { s3, sqs } from "@docflow/aws";
 import { awsEnv } from "@docflow/config";
-import { updateDocumentStatus } from "@docflow/database";
-import { type DocumentUploadedEvent, parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
-import { PDFParse } from "pdf-parse";
-import { claimDocument, handleProcessingError } from "../document-claim.js";
-import { extractTextFromImage } from "./ocr.js";
+import { handleDocumentUploaded } from "./handle-document-uploaded.js";
+import { handleDeadLetterMessage } from "./handle-dlm.js";
+import { deleteMessage, receiveMessages } from "./sqs.js";
+import { parseMessage } from "./parse-message.js";
 
 let running = true;
 
 export function stopConsumer() {
   running = false;
 }
+const MAIN_QUEUE = awsEnv.SQS_QUEUE_URL;
+const MAIN_DLQ = `${MAIN_QUEUE}-dlq`;
 
 export async function startConsumer() {
   logger.info("Worker listening...");
 
   while (running) {
-    const response = await sqs.send(
-      new ReceiveMessageCommand({
-        QueueUrl: awsEnv.SQS_QUEUE_URL,
-
-        MaxNumberOfMessages: 1,
-
-        WaitTimeSeconds: 10,
-      }),
-    );
-
-    const messages = response.Messages ?? [];
+    const messages = await receiveMessages(MAIN_QUEUE);
 
     for (const message of messages) {
-      if (!message.Body) {
-        logger.error({ message }, "Something bad has happens");
-        break;
-      }
-
-      logger.info(message, "Received:");
-
-      const raw = JSON.parse(message.Body);
-      const validatedEvent = parseEvent(raw);
-
       try {
-        switch (validatedEvent.eventType) {
+        const event = parseMessage(message);
+        switch (event.eventType) {
           case "DOCUMENT_UPLOADED":
-            await handleDocumentUploaded(validatedEvent);
+            await handleDocumentUploaded(event);
             break;
         }
+
+        await deleteMessage(MAIN_QUEUE, message);
       } catch (error) {
-        await handleProcessingError(validatedEvent.payload.documentId, error);
-
-        throw error;
+        if (error instanceof Error) {
+          logger.error({ ...error }, "Processing failed");
+        } else {
+          logger.error({ error }, "Processing failed");
+        }
       }
+    }
 
-      await sqs.send(
-        new DeleteMessageCommand({
-          QueueUrl: awsEnv.SQS_QUEUE_URL,
+    const dlq = await receiveMessages(MAIN_DLQ);
+    for (const message of dlq) {
+      try {
+        await handleDeadLetterMessage(message);
 
-          ReceiptHandle: message.ReceiptHandle!,
-        }),
-      );
+        await deleteMessage(MAIN_DLQ, message);
+      } catch (error) {
+        logger.error(
+          { error, messageId: message.MessageId },
+          "Failed handling DLQ message",
+        );
+      }
     }
   }
 }
-
-const BUCKET = "docflow-uploads";
-
-export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
-  const { documentId } = event.payload;
-  const document = await claimDocument(documentId);
-
-  if (!document) {
-    logger.info(
-      {
-        documentId: event.payload.documentId,
-      },
-      "Document already claimed",
-    );
-
-    return;
-  }
-
-  const command = new GetObjectCommand({
-    Bucket: BUCKET,
-    Key: event.payload.storageKey,
-  });
-  const response = await s3.send(command);
-
-  if (response.ContentType === "application/pdf") {
-    const pdfBuffer = await response.Body?.transformToByteArray();
-
-    if (pdfBuffer) {
-      const extractedText = await getExtractText(pdfBuffer);
-      await updateDocumentStatus(event.payload.documentId, {
-        extractedText,
-      });
-    }
-  } else if (response.ContentType === "image/png") {
-    const buffer = await response.Body?.transformToByteArray();
-    if (buffer) {
-      const extractedText = await extractTextFromImage(Buffer.from(buffer));
-      await updateDocumentStatus(event.payload.documentId, {
-        extractedText,
-      });
-    }
-  } else {
-    // TODO: process the document.
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  }
-
-  await updateDocumentStatus(event.payload.documentId, {
-    status: "PROCESSED",
-  });
-}
-
-const getExtractText = async (pdfBuffer: Uint8Array) => {
-  const data = new PDFParse(pdfBuffer);
-  const extracted = await data.getText();
-  return extracted.text.trim();
-};

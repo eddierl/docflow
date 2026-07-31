@@ -25,10 +25,13 @@ export async function uploadAndWaitForProcessing(
       async () => {
         const result = await request.get(`/documents/${document.id}`);
 
-        return result.json();
+        const json = await result.json();
+
+        return json;
       },
       {
-        timeout: options?.timeout ?? 20000,
+        timeout: options?.timeout ?? 30000,
+        intervals: [1_000, 2_000, 10_000],
       },
     )
     .toMatchObject({
@@ -53,9 +56,7 @@ test("uploads a pdf document extract text", async ({ request }) => {
   expect(document.extractedText).toContain("Just another test on the wall");
 });
 
-test("uploads a pdf document with scanned image and extract text", async ({
-  request,
-}) => {
+test("uploads an image and extract text", async ({ request }) => {
   const id = await uploadAndWaitForProcessing(request, Fixtures.scannedImage);
 
   const response = await request.get(`/documents/${id}`);
