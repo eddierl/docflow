@@ -1,8 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 
 import { s3 } from "@docflow/aws";
-
-const BUCKET = "docflow-uploads";
+import { awsEnv } from "@docflow/config";
 
 export async function uploadFile(
   key: string,
@@ -11,7 +10,7 @@ export async function uploadFile(
 ) {
   await s3.send(
     new PutObjectCommand({
-      Bucket: BUCKET,
+      Bucket: awsEnv.S3_BUCKET,
       Key: key,
       Body: buffer,
       ContentType: contentType,
