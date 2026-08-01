@@ -1,16 +1,16 @@
 import {
-  type Message,
   DeleteMessageCommand,
+  type Message,
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
 import { sqs } from "@docflow/aws";
 
 export const deleteMessage = (QueueUrl: string, message: Message) => {
+  if (!message.ReceiptHandle) return;
   return sqs.send(
     new DeleteMessageCommand({
       QueueUrl,
-
-      ReceiptHandle: message.ReceiptHandle!,
+      ReceiptHandle: message.ReceiptHandle,
     }),
   );
 };
