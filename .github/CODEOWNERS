@@ -1,0 +1,23 @@
+# Code Owners
+# https://docs.github.com/repositories/managing-your-repositories--and-your-pages/managing-code-ownership-and-repositories-with-code-ownership/about-code-ownership
+
+# Default owner for everything
+* @eddierl
+
+# Infrastructure and deployment
+/terraform/ @eddierl
+/docker-compose.yml @eddierl
+/.github/workflows/ @eddierl
+
+# Application services
+/apps/api/ @eddierl
+/apps/worker/ @eddierl
+/apps/outbox-worker/ @eddierl
+/apps/e2e/ @eddierl
+
+# Shared packages
+/packages/ @eddierl
+
+# Documentation
+/docs/ @eddierl
+/*.md @eddierl

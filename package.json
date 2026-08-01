@@ -1,27 +1,40 @@
 {
   "name": "docflow",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Event-driven document processing platform with OCR, PDF extraction, and reliable async workflows — built as a portfolio project showcasing cloud-native architecture.",
+  "private": true,
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
     "lint:fix": "biome check --write .",
+    "prepare": "husky",
     "infra": "docker compose up -d",
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
     "infra:reset": "docker compose down -v",
     "terraform:init": "terraform -chdir=terraform init",
     "terraform:plan": "terraform -chdir=terraform plan",
-    "terraform:apply": "terraform -chdir=terraform apply",
-    "db:migrate": "pnpm --filter @docflow/database db:migrate"
+    "terraform:apply": "terraform -chdir=terraform apply -auto-approve",
+    "db:migrate": "pnpm --filter @docflow/database db:migrate",
+    "test": "turbo run test --filter=!@docflow/e2e",
+    "test:e2e": "pnpm --filter @docflow/e2e test",
+    "test:all": "turbo run test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "document-processing",
+    "event-driven",
+    "aws",
+    "typescript",
+    "monorepo",
+    "turbo",
+    "serverless",
+    "ocr",
+    "pdf"
+  ],
+  "author": "Eddie Erlich <edlich6@gmail.com>",
+  "license": "MIT",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
@@ -30,9 +43,19 @@
     }
   },
   "type": "module",
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx}": [
+      "biome check --write --unsafe"
+    ],
+    "**/*.{json,md,yml,yaml}": [
+      "biome format --write"
+    ]
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
     "@types/node": "^22.20.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
     "turbo": "^2.10.7",
     "typescript": "^7.0.2"
   }

@@ -17,6 +17,7 @@ export async function updateDocumentStatus(
   data: {
     status?: typeof documents.$inferSelect.status;
     extractedText?: typeof documents.$inferSelect.extractedText;
+    lastError?: typeof documents.$inferSelect.lastError;
   },
 ) {
   const [document] = await db

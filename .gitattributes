@@ -1,0 +1,20 @@
+# Auto-normalize line endings
+* text=auto eol=lf
+
+# Compress large binary files
+*.traineddata filter=lfs diff=lfs merge=lfs -text
+
+# Terraform state files — never modify
+*.tfstate -diff
+*.tfstate.backup -diff
+
+# Lock files
+pnpm-lock.yaml eol=lf
+
+# YAML/JSON — always LF
+*.yml eol=lf
+*.yaml eol=lf
+*.json eol=lf
+
+# Documentation
+*.md eol=lf
