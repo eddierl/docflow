@@ -4,42 +4,54 @@ import { awsEnv } from "@docflow/config";
 import { db, outboxEvents } from "@docflow/database";
 import { parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function publishPendingEvents() {
-  const events = await db
-    .select()
-    .from(outboxEvents)
-    .where(eq(outboxEvents.status, "PENDING"));
+  // Use FOR UPDATE SKIP LOCKED to prevent multiple outbox workers
+  // from processing the same event simultaneously
+  const lockedEvents = await db.execute(
+    sql`SELECT * FROM outbox_events WHERE status = 'PENDING' LIMIT 10 FOR UPDATE SKIP LOCKED`,
+  );
 
-  for (const event of events) {
-    logger.info(
-      {
-        queue: awsEnv.SQS_QUEUE_URL,
-        event: event.id,
-      },
-      "Sending to SQS",
-    );
+  if (!lockedEvents || lockedEvents.length === 0) {
+    return;
+  }
 
-    const message = {
-      eventType: event.type,
-      payload: event.payload,
-    };
-    const validatedEvent = parseEvent(message);
+  for (const event of lockedEvents as unknown as (typeof outboxEvents.$inferSelect)[]) {
+    try {
+      logger.info(
+        {
+          queue: awsEnv.SQS_QUEUE_URL,
+          eventId: event.id,
+        },
+        "Sending event to SQS",
+      );
 
-    await sqs.send(
-      new SendMessageCommand({
-        QueueUrl: awsEnv.SQS_QUEUE_URL,
-        MessageBody: JSON.stringify(validatedEvent),
-      }),
-    );
-    logger.info({ id: event.id }, "SQS send completed");
+      const message = {
+        eventType: event.type,
+        payload: event.payload,
+      };
+      const validatedEvent = parseEvent(message);
 
-    await db
-      .update(outboxEvents)
-      .set({
-        status: "SENT",
-      })
-      .where(eq(outboxEvents.id, event.id));
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: awsEnv.SQS_QUEUE_URL,
+          MessageBody: JSON.stringify(validatedEvent),
+        }),
+      );
+
+      await db
+        .update(outboxEvents)
+        .set({
+          status: "SENT",
+          processedAt: new Date(),
+        })
+        .where(eq(outboxEvents.id, event.id));
+
+      logger.info({ eventId: event.id }, "Event published successfully");
+    } catch (error) {
+      logger.error({ error, eventId: event.id }, "Failed to publish event");
+      // Leave as PENDING so it can be retried on the next cycle
+    }
   }
 }
