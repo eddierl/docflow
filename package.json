@@ -17,7 +17,8 @@
     "terraform:init": "terraform -chdir=terraform init",
     "terraform:plan": "terraform -chdir=terraform plan",
     "terraform:apply": "terraform -chdir=terraform apply",
-    "db:migrate": "pnpm --filter @docflow/database db:migrate"
+    "db:migrate": "pnpm --filter @docflow/database db:migrate",
+    "test": "turbo run test"
   },
   "keywords": [],
   "author": "",

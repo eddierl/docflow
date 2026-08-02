@@ -1,6 +1,6 @@
 import {
-  type Message,
   DeleteMessageCommand,
+  type Message,
   ReceiveMessageCommand,
 } from "@aws-sdk/client-sqs";
 import { sqs } from "@docflow/aws";

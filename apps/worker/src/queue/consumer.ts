@@ -1,9 +1,9 @@
 import { awsEnv } from "@docflow/config";
 import { logger } from "@docflow/logger";
-import { handleDocumentUploaded } from "./handle-document-uploaded.js";
 import { handleDeadLetterMessage } from "./handle-dlm.js";
-import { deleteMessage, receiveMessages } from "./sqs.js";
+import { handleDocumentUploaded } from "./handle-document-uploaded.js";
 import { parseMessage } from "./parse-message.js";
+import { deleteMessage, receiveMessages } from "./sqs.js";
 
 let running = true;
 

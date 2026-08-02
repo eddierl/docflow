@@ -3,9 +3,9 @@ import { s3 } from "@docflow/aws";
 import { updateDocumentStatus } from "@docflow/database";
 import type { DocumentUploadedEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
+import { PDFParse } from "pdf-parse";
 import { claimDocument } from "../document-claim.js";
 import { extractTextFromImage } from "./ocr.js";
-import { PDFParse } from "pdf-parse";
 
 export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
   const { documentId } = event.payload;
