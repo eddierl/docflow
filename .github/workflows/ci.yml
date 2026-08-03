@@ -131,24 +131,45 @@ jobs:
 
       - name: Start services and run tests
         run: |
-          # Start all services via turbo (api, worker, outbox-worker)
-          pnpm dev &
-          DEV_PID=$!
+          # Start API server in background
+          pnpm --filter @docflow/api exec tsx src/index.ts &
+          API_PID=$!
 
-          # Wait for API health endpoint
+          # Start document worker in background
+          pnpm --filter @docflow/worker exec tsx src/index.ts &
+          WORKER_PID=$!
+
+          # Start outbox worker in background
+          pnpm --filter @docflow/outbox-worker exec tsx src/index.ts &
+          OUTBOX_PID=$!
+
+          # Wait for API to be ready
           for i in $(seq 1 30); do
             if curl -s http://localhost:3000/health > /dev/null 2>&1; then
-              echo "Services are ready"
+              echo "API is ready"
               break
             fi
             sleep 2
           done
 
+          # Wait for document worker health endpoint
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3001 > /dev/null 2>&1; then
+              echo "Document worker is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          # Give outbox worker time to process any pending events
+          sleep 10
+          echo "All workers are ready"
+
           # Run tests
           pnpm run test
 
-          # Stop services
-          kill $DEV_PID 2>/dev/null || true
+          # Stop all servers
+          kill $API_PID $WORKER_PID $OUTBOX_PID 2>/dev/null || true
         env:
           DATABASE_URL: postgresql://docflow:docflow@localhost:5432/docflow-test
           SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
