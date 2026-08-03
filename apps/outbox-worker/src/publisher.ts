@@ -4,20 +4,15 @@ import { awsEnv } from "@docflow/config";
 import { db, outboxEvents } from "@docflow/database";
 import { parseEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export async function publishPendingEvents() {
-  // Use FOR UPDATE SKIP LOCKED to prevent multiple outbox workers
-  // from processing the same event simultaneously
-  const lockedEvents = await db.execute(
-    sql`SELECT * FROM outbox_events WHERE status = 'PENDING' LIMIT 10 FOR UPDATE SKIP LOCKED`,
-  );
+  const events = await db
+    .select()
+    .from(outboxEvents)
+    .where(eq(outboxEvents.status, "PENDING"));
 
-  if (!lockedEvents || lockedEvents.length === 0) {
-    return;
-  }
-
-  for (const event of lockedEvents as unknown as (typeof outboxEvents.$inferSelect)[]) {
+  for (const event of events) {
     try {
       logger.info(
         {
