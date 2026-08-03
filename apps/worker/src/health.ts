@@ -15,7 +15,7 @@ export async function startHealthServer(): Promise<void> {
 
 export async function stopHealthServer(): Promise<void> {
   if (server) {
-    await new Promise<void>((resolve) => server!.close(() => resolve()));
+    await new Promise<void>((resolve) => server?.close(() => resolve()));
     server = null;
   }
 }
