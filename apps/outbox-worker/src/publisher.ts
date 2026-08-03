@@ -13,33 +13,40 @@ export async function publishPendingEvents() {
     .where(eq(outboxEvents.status, "PENDING"));
 
   for (const event of events) {
-    logger.info(
-      {
-        queue: awsEnv.SQS_QUEUE_URL,
-        event: event.id,
-      },
-      "Sending to SQS",
-    );
+    try {
+      logger.info(
+        {
+          queue: awsEnv.SQS_QUEUE_URL,
+          eventId: event.id,
+        },
+        "Sending event to SQS",
+      );
 
-    const message = {
-      eventType: event.type,
-      payload: event.payload,
-    };
-    const validatedEvent = parseEvent(message);
+      const message = {
+        eventType: event.type,
+        payload: event.payload,
+      };
+      const validatedEvent = parseEvent(message);
 
-    await sqs.send(
-      new SendMessageCommand({
-        QueueUrl: awsEnv.SQS_QUEUE_URL,
-        MessageBody: JSON.stringify(validatedEvent),
-      }),
-    );
-    logger.info({ id: event.id }, "SQS send completed");
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: awsEnv.SQS_QUEUE_URL,
+          MessageBody: JSON.stringify(validatedEvent),
+        }),
+      );
 
-    await db
-      .update(outboxEvents)
-      .set({
-        status: "SENT",
-      })
-      .where(eq(outboxEvents.id, event.id));
+      await db
+        .update(outboxEvents)
+        .set({
+          status: "SENT",
+          processedAt: new Date(),
+        })
+        .where(eq(outboxEvents.id, event.id));
+
+      logger.info({ eventId: event.id }, "Event published successfully");
+    } catch (error) {
+      logger.error({ error, eventId: event.id }, "Failed to publish event");
+      // Leave as PENDING so it can be retried on the next cycle
+    }
   }
 }
