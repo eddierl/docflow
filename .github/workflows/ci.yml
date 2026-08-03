@@ -66,7 +66,7 @@ jobs:
           --health-retries 5
 
       floci:
-        image: floci/floci:2
+        image: floci:latest
         ports:
           - 4566:4566
 
@@ -140,6 +140,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://docflow:docflow@localhost:5432/docflow-test
           SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
+          S3_BUCKET: docflow-uploads
           AWS_ENDPOINT: http://localhost:4566
           AWS_REGION: us-east-1
           AWS_ACCESS_KEY_ID: test

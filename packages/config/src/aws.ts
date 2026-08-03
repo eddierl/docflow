@@ -7,6 +7,7 @@ const awsEnvSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().default("test"),
 
   SQS_QUEUE_URL: z.url(),
+  S3_BUCKET: z.string(),
 });
 
 export const awsEnv = awsEnvSchema.parse(process.env);
