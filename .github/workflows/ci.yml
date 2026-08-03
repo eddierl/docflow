@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  pull_request:
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/share/pnpm
+            node_modules/.cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type check
+        run: pnpm run typecheck
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: docflow
+          POSTGRES_PASSWORD: docflow
+          POSTGRES_DB: docflow-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/share/pnpm
+            node_modules/.cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8
+
+      - name: Start Floci (AWS Emulator)
+        run: |
+          docker run -d \
+            --name floci \
+            -p 4566:4566 \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e FLOCI_DEFAULT_REGION=us-east-1 \
+            -u root \
+            floci/floci:latest
+
+      - name: Wait for Floci
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:4566/_health > /dev/null 2>&1; then
+              echo "Floci is ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Provision local infra
+        run: |
+          terraform -chdir=terraform init -input=false
+          terraform -chdir=terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_bucket_name: docflow-uploads
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Run database migrations
+        run: pnpm run db:migrate
+        env:
+          DATABASE_URL: postgres://docflow:docflow@localhost:5432/docflow-test
+
+      - name: Start services and run tests
+        run: |
+          # Start API server in background
+          pnpm --filter @docflow/api exec tsx src/index.ts &
+          API_PID=$!
+
+          # Start document worker in background
+          pnpm --filter @docflow/worker exec tsx src/index.ts &
+          WORKER_PID=$!
+
+          # Start outbox worker in background
+          pnpm --filter @docflow/outbox-worker exec tsx src/index.ts &
+          OUTBOX_PID=$!
+
+          # Wait for API to be ready
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "API is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          # Wait for document worker health endpoint
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3001 > /dev/null 2>&1; then
+              echo "Document worker is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          # Give outbox worker time to process any pending events
+          sleep 10
+          echo "All workers are ready"
+
+          # Run tests
+          pnpm run test
+
+          # Stop all servers
+          kill $API_PID $WORKER_PID $OUTBOX_PID 2>/dev/null || true
+        env:
+          DATABASE_URL: postgresql://docflow:docflow@localhost:5432/docflow-test
+          SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
+          S3_BUCKET: docflow-uploads
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
