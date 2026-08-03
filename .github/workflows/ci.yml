@@ -65,10 +65,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      localstack:
-        image: localstack/localstack:3.5
-        env:
-          SERVICES: s3,sqs
+      floci:
+        image: floci/floci:2
         ports:
           - 4566:4566
 
@@ -99,24 +97,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Wait for LocalStack
-        run: |
-          for i in $(seq 1 30); do
-            if curl -s http://localhost:4566/_localstack/health > /dev/null 2>&1; then
-              echo "LocalStack is ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "LocalStack failed to start"
-          exit 1
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7
 
-      - name: Provision infra
+      - name: Provision local infra
         run: |
           terraform -chdir=terraform init -input=false
           terraform -chdir=terraform apply -auto-approve -input=false
@@ -136,7 +122,6 @@ jobs:
         run: pnpm run test
         env:
           DATABASE_URL: postgres://docflow:docflow@localhost:5432/docflow-test
-          SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
           AWS_ENDPOINT: http://localhost:4566
           AWS_REGION: us-east-1
           AWS_ACCESS_KEY_ID: test
