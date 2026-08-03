@@ -33,8 +33,7 @@ jobs:
             ~/.local/share/pnpm
             node_modules/.cache
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys:
-            - ${{ runner.os }}-pnpm-
+          restore-keys: ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
