@@ -64,10 +64,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 24
 
@@ -129,10 +129,15 @@ jobs:
         env:
           DATABASE_URL: postgres://docflow:docflow@localhost:5432/docflow-test
 
-      - name: Start API server and run tests
+      - name: Start API server and worker
         run: |
+          # Start API server in background
           pnpm --filter @docflow/api exec tsx src/index.ts &
           API_PID=$!
+
+          # Start worker in background
+          pnpm --filter @docflow/worker exec tsx src/index.ts &
+          WORKER_PID=$!
 
           # Wait for API to be ready
           for i in $(seq 1 30); do
@@ -143,11 +148,20 @@ jobs:
             sleep 2
           done
 
+          # Wait for worker health endpoint
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3001 > /dev/null 2>&1; then
+              echo "Worker is ready"
+              break
+            fi
+            sleep 2
+          done
+
           # Run tests
           pnpm run test
 
-          # Stop API server
-          kill $API_PID 2>/dev/null || true
+          # Stop both servers
+          kill $API_PID $WORKER_PID 2>/dev/null || true
         env:
           DATABASE_URL: postgresql://docflow:docflow@localhost:5432/docflow-test
           SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
