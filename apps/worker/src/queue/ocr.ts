@@ -1,11 +1,23 @@
-import { createWorker, type ImageLike } from "tesseract.js";
+import { createWorker, type ImageLike, type Worker } from "tesseract.js";
 
-export async function extractTextFromImage(image: ImageLike) {
-  const worker = await createWorker("eng");
+let worker: Worker | null = null;
 
-  const result = await worker.recognize(image);
+async function getWorker(): Promise<Worker> {
+  if (!worker) {
+    worker = await createWorker("eng");
+  }
+  return worker;
+}
 
-  await worker.terminate();
-
+export async function extractTextFromImage(image: ImageLike): Promise<string> {
+  const w = await getWorker();
+  const result = await w.recognize(image);
   return result.data.text;
+}
+
+export async function destroyOcrWorker(): Promise<void> {
+  if (worker) {
+    await worker.terminate();
+    worker = null;
+  }
 }

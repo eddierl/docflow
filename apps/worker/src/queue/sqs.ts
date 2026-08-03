@@ -6,11 +6,11 @@ import {
 import { sqs } from "@docflow/aws";
 
 export const deleteMessage = (QueueUrl: string, message: Message) => {
+  if (!message.ReceiptHandle) return;
   return sqs.send(
     new DeleteMessageCommand({
       QueueUrl,
-
-      ReceiptHandle: message.ReceiptHandle!,
+      ReceiptHandle: message.ReceiptHandle,
     }),
   );
 };

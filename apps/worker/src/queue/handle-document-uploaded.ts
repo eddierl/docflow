@@ -1,5 +1,6 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3 } from "@docflow/aws";
+import { awsEnv } from "@docflow/config";
 import { updateDocumentStatus } from "@docflow/database";
 import type { DocumentUploadedEvent } from "@docflow/events";
 import { logger } from "@docflow/logger";
@@ -12,57 +13,55 @@ export async function handleDocumentUploaded(event: DocumentUploadedEvent) {
   const document = await claimDocument(documentId);
 
   if (!document) {
+    logger.info({ documentId }, "Document already claimed");
+    return;
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: awsEnv.S3_BUCKET,
+      Key: event.payload.storageKey,
+    });
+
+    const response = await s3.send(command);
+
+    const buffer = await response.Body?.transformToByteArray();
+
     logger.info(
-      {
-        documentId,
-      },
-      "Document already claimed",
+      { documentId, mimetype: response.ContentType },
+      "Processing document",
     );
-    throw new Error(`Document ${documentId} is already being processed`);
-  }
 
-  const command = new GetObjectCommand({
-    Bucket: BUCKET,
-    Key: event.payload.storageKey,
-  });
+    let extractedText: string | undefined;
 
-  const response = await s3.send(command);
-
-  const buffer = await response.Body?.transformToByteArray();
-
-  logger.info(
-    { documentId, mimetype: response.ContentType },
-    "Handle document",
-  );
-
-  if (response.ContentType === "application/pdf") {
-    if (buffer) {
-      const extractedText = await getExtractText(buffer);
-      await updateDocumentStatus(event.payload.documentId, {
-        extractedText,
-      });
+    if (response.ContentType === "application/pdf" && buffer) {
+      extractedText = await extractPdfText(buffer);
+    } else if (response.ContentType === "image/png" && buffer) {
+      extractedText = await extractTextFromImage(Buffer.from(buffer));
+    } else {
+      // Unsupported type — simulate processing delay
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-  } else if (response.ContentType === "image/png") {
-    if (buffer) {
-      const extractedText = await extractTextFromImage(Buffer.from(buffer));
-      await updateDocumentStatus(event.payload.documentId, {
-        extractedText,
-      });
-    }
-  } else {
-    // TODO: process the document.
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    await updateDocumentStatus(documentId, {
+      status: "PROCESSED",
+      extractedText,
+    });
+
+    logger.info({ documentId }, "Document processed successfully");
+  } catch (error) {
+    logger.error({ error, documentId }, "Failed to process document");
+    await updateDocumentStatus(documentId, {
+      status: "FAILED",
+      lastError: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
-
-  await updateDocumentStatus(event.payload.documentId, {
-    status: "PROCESSED",
-  });
-
-  logger.info({ documentId }, "Handled document");
 }
-export const getExtractText = async (pdfBuffer: Uint8Array) => {
-  const data = new PDFParse(pdfBuffer);
-  const extracted = await data.getText();
-  return extracted.text.trim();
-};
-export const BUCKET = "docflow-uploads";
+
+async function extractPdfText(pdfBuffer: Uint8Array): Promise<string> {
+  const parser = new PDFParse({ data: pdfBuffer });
+  const result = await parser.getText();
+  await parser.destroy();
+  return result.text.trim();
+}
