@@ -26,7 +26,7 @@ resource "aws_api_gateway_method" "documents_post" {
   authorization = "NONE"
 }
 
-# MOCK integration placeholder — Lambda will be wired in Step 2
+# GET uses MOCK (no Lambda yet)
 resource "aws_api_gateway_integration" "documents_get_integration" {
   rest_api_id   = aws_api_gateway_rest_api.docflow.id
   resource_id   = aws_api_gateway_resource.documents.id
@@ -39,24 +39,15 @@ resource "aws_api_gateway_integration" "documents_get_integration" {
   }
 }
 
-resource "aws_api_gateway_integration" "documents_post_integration" {
-  rest_api_id   = aws_api_gateway_rest_api.docflow.id
-  resource_id   = aws_api_gateway_resource.documents.id
-  http_method   = aws_api_gateway_method.documents_post.http_method
-  type          = "MOCK"
-  request_templates = {
-    "application/json" = jsonencode({
-      statusCode = 201
-    })
-  }
-}
+# POST uses AWS_PROXY → Lambda (real handler)
+# Note: documents_post_lambda in lambda.tf handles this
 
 resource "aws_api_gateway_deployment" "docflow" {
   rest_api_id = aws_api_gateway_rest_api.docflow.id
 
   depends_on = [
     aws_api_gateway_integration.documents_get_integration,
-    aws_api_gateway_integration.documents_post_integration,
+    aws_api_gateway_integration.documents_post_lambda,
   ]
 
   triggers = {

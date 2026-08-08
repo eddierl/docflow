@@ -5,6 +5,10 @@ terraform {
       version = ">= 6.58.0" # This forces this specific block to use your active version
 
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
+    }
   }
 
   required_version = ">= 1.6"
@@ -29,5 +33,7 @@ provider "aws" {
     sqs        = "http://localhost:4566"
     dynamodb   = "http://localhost:4566"
     apigateway = "http://localhost:4566"
+    iam        = "http://localhost:4566"
+    lambda     = "http://localhost:4566"
   }
 }
