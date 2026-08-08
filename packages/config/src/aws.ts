@@ -8,6 +8,7 @@ const awsEnvSchema = z.object({
 
   SQS_QUEUE_URL: z.url(),
   S3_BUCKET: z.string(),
+  DYNAMODB_TABLE_NAME: z.string(),
 });
 
 export const awsEnv = awsEnvSchema.parse(process.env);

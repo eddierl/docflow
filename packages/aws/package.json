@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1095.0",
     "@aws-sdk/client-s3": "^3.1095.0",
     "@aws-sdk/client-sqs": "^3.x",
     "@docflow/config": "workspace:*"
