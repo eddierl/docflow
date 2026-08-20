@@ -54,7 +54,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 # Lambda function - upload handler
 data "archive_file" "upload_handler" {
   type        = "zip"
-  source_dir  = "${path.module}/../packages/lambda-upload/dist"
+  source_dir  = "${path.module}/../packages/lambda-upload"
   output_path = "${path.module}/lambda-upload.zip"
 }
 
