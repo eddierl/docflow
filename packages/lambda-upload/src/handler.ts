@@ -1,6 +1,5 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { randomUUID } from "node:crypto";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 
 const endpoint = process.env.AWS_ENDPOINT;
 const region = process.env.AWS_REGION || "us-east-1";
@@ -54,7 +53,7 @@ export const handler = async (event: {
           createdAt: { S: now },
           updatedAt: { S: now },
         },
-      })
+      }),
     );
 
     return {

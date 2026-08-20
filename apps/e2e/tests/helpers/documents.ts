@@ -1,8 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { APIRequestContext } from "@playwright/test";
 import type { FixtureDefinition } from "./../fixtures/index.js";
 
-export async function uploadDocument(request: any, fixture: FixtureDefinition) {
+export async function uploadDocument(
+  request: APIRequestContext,
+  fixture: FixtureDefinition,
+) {
   const buffer = await loadFixture(fixture.file);
 
   return request.post("/documents", {
