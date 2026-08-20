@@ -90,6 +90,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build lambdas
+        run: pnpm --filter "lambda*" build
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
