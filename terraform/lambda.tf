@@ -54,7 +54,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 # Lambda function - upload handler
 data "archive_file" "upload_handler" {
   type        = "zip"
-  source_dir  = "${path.module}/../packages/lambda-upload"
+  source_dir  = "${path.module}/../packages/lambda-upload/dist"
   output_path = "${path.module}/lambda-upload.zip"
 }
 
@@ -62,7 +62,7 @@ resource "aws_lambda_function" "upload_handler" {
   function_name    = "docflow-upload-handler"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "handler.handler"
-  runtime          = "nodejs20.x"
+  runtime          = "nodejs24.x"
   filename         = data.archive_file.upload_handler.output_path
   source_code_hash = data.archive_file.upload_handler.output_base64sha256
 
