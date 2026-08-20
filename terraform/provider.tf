@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 6.58.0" # This forces this specific block to use your active version
+      version = ">= 6" # This forces this specific block to use your active version
 
     }
     archive = {
