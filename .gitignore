@@ -12,3 +12,5 @@ dist
 test-results
 
 *.traineddata
+# Terraform lambda packaging artifact (built by pnpm build)
+terraform/lambda-upload.zip
