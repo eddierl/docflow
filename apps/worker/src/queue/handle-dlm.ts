@@ -8,8 +8,9 @@ export async function handleDeadLetterMessage(message: Message) {
   }
 
   const raw = JSON.parse(message.Body);
+  const parsedMessage = JSON.parse(raw.Message);
 
-  const event = parseEvent(raw);
+  const event = parseEvent(parsedMessage);
 
   switch (event.eventType) {
     case "DOCUMENT_UPLOADED":
