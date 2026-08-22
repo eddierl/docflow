@@ -7,6 +7,7 @@ const awsEnvSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().default("test"),
 
   SQS_QUEUE_URL: z.url(),
+  SNS_TOPIC_ARN: z.string(),
   S3_BUCKET: z.string(),
   DYNAMODB_TABLE_NAME: z.string(),
 });

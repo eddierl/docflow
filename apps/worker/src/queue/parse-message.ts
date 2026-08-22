@@ -10,6 +10,10 @@ export const parseMessage = (message: Message) => {
     throw new Error("Something bad has happened");
   }
   const raw = JSON.parse(message.Body);
-  const event = parseEvent(raw);
+  const parsedMessage = JSON.parse(raw.Message);
+
+  logger.debug({ raw, parsedMessage }, "Message content");
+
+  const event = parseEvent(parsedMessage);
   return event;
 };

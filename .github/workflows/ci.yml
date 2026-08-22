@@ -178,6 +178,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://docflow:docflow@localhost:5432/docflow-test
           SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
+          SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:docflow-events
           S3_BUCKET: docflow-uploads
           AWS_ENDPOINT: http://localhost:4566
           AWS_REGION: us-east-1

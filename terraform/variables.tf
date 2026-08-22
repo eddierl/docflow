@@ -9,3 +9,11 @@ variable "table_name" {
 variable "api_name" {
   default = "docflow-api"
 }
+
+variable "cluster_name" {
+  default = "docflow"
+}
+
+variable "worker_image_tag" {
+  default = "latest"
+}
