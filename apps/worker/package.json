@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "db:test:migrate": "dotenv -e .env.test -- pn --filter @docflow/database exec drizzle-kit migrate"

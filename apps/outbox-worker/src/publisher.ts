@@ -16,6 +16,7 @@ export async function publishPendingEvents() {
       {
         topicArn: awsEnv.SNS_TOPIC_ARN,
         event: event.id,
+        payload: event.payload
       },
       "Sending to SNS",
     );
