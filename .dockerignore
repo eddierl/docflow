@@ -1,0 +1,26 @@
+# VCS
+.git
+
+# Dependencies (recreated inside the image via pnpm install)
+**/node_modules
+
+# Build artifacts (recreated inside the image via turbo build)
+**/dist
+out
+
+# Turbo cache
+**/.turbo
+
+# Turbo Docker prune artifacts (created when pruning on the host)
+pnpm-lock.yaml.turbo-pruned
+
+# Local environment files (the container receives its env from the ECS task definition)
+.env
+**/.env
+**/.env.*
+
+# Terraform (state + IaC artifacts, not needed in the image)
+terraform
+
+# Test artifacts
+**/test-results
