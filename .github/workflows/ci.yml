@@ -185,3 +185,144 @@ jobs:
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
           DYNAMODB_TABLE_NAME: Documents
+
+  worker-docker:
+    name: Worker in Docker
+    runs-on: ubuntu-latest
+    needs: [quality]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: docflow
+          POSTGRES_PASSWORD: docflow
+          POSTGRES_DB: docflow-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/share/pnpm
+            node_modules/.cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8
+
+      - name: Start Floci (AWS Emulator)
+        run: |
+          docker run -d \
+            --name floci \
+            -p 4566:4566 \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e FLOCI_DEFAULT_REGION=us-east-1 \
+            -u root \
+            floci/floci:latest
+
+      - name: Wait for Floci
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:4566/_health > /dev/null 2>&1; then
+              echo "Floci is ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Provision local infra
+        run: |
+          terraform -chdir=terraform init -input=false
+          terraform -chdir=terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_bucket_name: docflow-uploads
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Run database migrations
+        run: pnpm run db:migrate
+        env:
+          DATABASE_URL: postgres://docflow:docflow@localhost:5432/docflow-test
+
+      - name: Build worker image
+        run: docker build -f Dockerfile.worker -t docflow-worker:ci .
+
+      - name: Run worker in a container
+        run: |
+          # --add-host maps host.docker.internal to the runner's gateway IP,
+          # so the container reaches the runner's postgres + Floci by name
+          # (the same fix as the ECS task definition in terraform/ecs.tf).
+          docker run -d \
+            --name worker \
+            --add-host=host.docker.internal:host-gateway \
+            -p 3001:3001 \
+            -e DATABASE_URL=postgresql://docflow:docflow@host.docker.internal:5432/docflow-test \
+            -e SQS_QUEUE_URL=http://host.docker.internal:4566/000000000000/docflow-document-processing \
+            -e AWS_ENDPOINT=http://host.docker.internal:4566 \
+            -e AWS_REGION=us-east-1 \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e S3_BUCKET=docflow-uploads \
+            -e SNS_TOPIC_ARN=arn:aws:sns:us-east-1:000000000000:docflow-events \
+            -e DYNAMODB_TABLE_NAME=Documents \
+            docflow-worker:ci
+
+      - name: Wait for worker health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3001/health > /dev/null 2>&1; then
+              echo "Worker in Docker is healthy"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:3001/health > /dev/null
+
+      - name: Verify worker stays alive
+        run: |
+          set -euo pipefail
+          # Give a startup failure (e.g. ECONNREFUSED to the AWS endpoint)
+          # time to crash the process, then assert it survived.
+          sleep 15
+          test "$(docker inspect -f '{{.State.Running}}' worker)" = "true"
+          curl -sf http://localhost:3001/health > /dev/null
+          docker logs worker > /tmp/worker-logs.txt || true
+          if grep -q 'ECONNREFUSED' /tmp/worker-logs.txt; then
+            echo "FAIL: ECONNREFUSED found in worker logs:"
+            cat /tmp/worker-logs.txt
+            exit 1
+          fi
+          cat /tmp/worker-logs.txt
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f worker floci 2>/dev/null || true

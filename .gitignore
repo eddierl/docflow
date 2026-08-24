@@ -12,5 +12,10 @@ dist
 test-results
 
 *.traineddata
+
+# Turbo Docker prune artifacts (created when running `pnpm turbo prune --docker` on the host)
+out
+pnpm-lock.yaml.turbo-pruned
+
 # Terraform lambda packaging artifact (built by pnpm build)
 terraform/lambda-upload.zip

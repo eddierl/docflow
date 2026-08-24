@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "turbo run dev",
+    "dev:local": "turbo run dev",
+    "dev:docker": "turbo run dev --filter='!@docflow/worker'",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
@@ -18,7 +20,12 @@
     "terraform:plan": "terraform -chdir=terraform plan",
     "terraform:apply": "terraform -chdir=terraform apply",
     "db:migrate": "pnpm --filter @docflow/database db:migrate",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "worker:docker:build": "docker build -f Dockerfile.worker -t 127.0.0.1:5100/docflow-worker:latest .",
+    "worker:docker:push": "aws ecr get-login-password --endpoint-url http://localhost:4566 | docker login -u AWS --password-stdin 127.0.0.1:5100 && docker push 127.0.0.1:5100/docflow-worker:latest && docker tag 127.0.0.1:5100/docflow-worker:latest 000000000000.dkr.ecr.us-east-1.localhost:5100/docflow-worker:latest",
+    "worker:docker:deploy": "aws ecs update-service --cluster docflow --service docflow-worker --desired-count 0 --endpoint-url http://localhost:4566 && C=$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text); for i in $(seq 1 60); do [ \"$C\" = \"0\" ] && break; sleep 5; C=$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text); done; [ \"$C\" = \"0\" ] || { echo 'worker did not scale down' >&2; exit 1; }; aws ecs update-service --cluster docflow --service docflow-worker --desired-count 1 --endpoint-url http://localhost:4566 && C=$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text); for i in $(seq 1 60); do [ \"$C\" = \"1\" ] && break; sleep 5; C=$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text); done; [ \"$C\" = \"1\" ] || { echo 'worker did not scale up' >&2; exit 1; }",
+    "worker:docker:up": "pnpm worker:docker:build && pnpm worker:docker:push && pnpm worker:docker:deploy",
+    "worker:docker:status": "aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566"
   },
   "keywords": [],
   "author": "",

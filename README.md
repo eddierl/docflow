@@ -74,10 +74,48 @@ docflow/
    ```
 
 5. **Start the Application:**
-   Run all services (API, Workers) concurrently.
+   Choose your worker mode (see [Running the Worker in Docker](#-running-the-worker-in-docker-ecs)):
    ```bash
-   pnpm run dev
+   pnpm dev:local    # all apps on your machine (API, worker, outbox-worker)
+   pnpm dev:docker   # API + outbox-worker locally; worker runs in an ECS container
    ```
+   (`pnpm run dev` is an alias of `pnpm dev:local`.)
+
+## 🐳 Running the Worker in Docker (ECS)
+
+The `worker` app can run either on your machine or inside a floci ECS container — everything else stays local. The two dev scripts select the mode:
+
+- `pnpm dev:local` — runs **all** apps (API, worker, outbox-worker) on your machine; the worker reads the root `.env` (e.g. `AWS_ENDPOINT=http://localhost:4566`).
+- `pnpm dev:docker` — runs **API + outbox-worker** locally; the worker lives in the ECS container.
+
+### Worker image lifecycle
+
+```bash
+pnpm worker:docker:up        # build → push to floci ECR → deploy (recommended loop)
+pnpm worker:docker:build     # docker build -f Dockerfile.worker
+pnpm worker:docker:push      # login + push to the floci registry, then re-tag for ECS
+pnpm worker:docker:deploy    # restart the service (desired-count 0 → 1)
+pnpm worker:docker:status    # describe the worker service
+```
+
+The container gets its environment from the ECS task definition (`terraform/ecs.tf`), not from a `.env` file — `.env` is excluded from the image via `.dockerignore`, and the task definition points `DATABASE_URL` / `AWS_ENDPOINT` at `host.docker.internal` so the container reaches your local Postgres and Floci.
+
+### Two floci quirks to know about
+
+- **Digest pinning:** ECS snapshots the `:latest` tag to a concrete image digest when a task starts. Pushing a new `:latest` does *not* update the running task on its own — that's why `worker:docker:deploy` does a desired-count 0 → stable → 1 restart, which makes the service re-resolve the tag.
+- **Registry address:** `docker login localhost:5100` can hang on macOS (IPv6 `::1` path in the Docker CLI). The scripts therefore push to `127.0.0.1:5100` and re-tag the image as `000000000000.dkr.ecr.us-east-1.localhost:5100/docflow-worker:latest` — the exact image name the task definition references.
+
+### Running both modes at once
+
+Safe: SQS long-polling is an exclusive receive and the worker deduplicates claims in the database, so a local worker and the containerized worker can poll the same queue without double-processing.
+
+### Pointing at real AWS
+
+The same shape works in real AWS: swap the registry URL/credentials for your real ECR repo, set real endpoints in the task definition, and consider immutable tags (e.g. build digests) instead of `latest` so the task definition pins an explicit image.
+
+### OCR note
+
+Tesseract downloads `eng.traineddata` from jsDelivr on first use. On the host that copy is reused (gitignored); inside the container it is re-downloaded per task until you mount a volume for `apps/worker/`.
 
 ## 🧪 Testing
 
