@@ -1,4 +1,9 @@
-import { getDocument } from "@docflow/database";
+import {
+  createIdempotency,
+  getDocument,
+  getIdempotencyByKey,
+} from "@docflow/database";
+import { logger } from "@docflow/logger";
 import type { FastifyInstance } from "fastify";
 import { uploadFile } from "../storage/storage.service.js";
 import { createDocument } from "./documents.service.js";
@@ -21,6 +26,17 @@ export async function documentsRoutes(app: FastifyInstance) {
   });
 
   app.post("/documents", async (request, reply) => {
+    const idempotencyKey = request.headers["idempotency-key"];
+    if (!idempotencyKey) {
+      return reply.status(400).send({ message: "should have idempotencyKey" });
+    }
+    logger.warn({ idempotencyKey }, "idempotencyKey");
+    const idempotency = await getIdempotencyByKey(idempotencyKey as string);
+
+    if (idempotency) {
+      return idempotency;
+    }
+
     const file = await request.file();
 
     if (!file) {
@@ -40,6 +56,9 @@ export async function documentsRoutes(app: FastifyInstance) {
       storageKey: key,
     });
 
+    await createIdempotency(document.id);
+
+    logger.info({ document }, "document");
     return reply.status(201).send(document);
   });
 }

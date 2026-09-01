@@ -41,5 +41,6 @@ provider "aws" {
     logs       = "http://localhost:4566"
     cloudwatch = "http://localhost:4566"
     ec2        = "http://localhost:4566"
+    scheduler = "http://localhost:4566"
   }
 }

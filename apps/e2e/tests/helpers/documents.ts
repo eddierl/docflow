@@ -8,8 +8,12 @@ export async function uploadDocument(
   fixture: FixtureDefinition,
 ) {
   const buffer = await loadFixture(fixture.file);
+  const idempotencyKey = crypto.randomUUID();
 
   return request.post("/documents", {
+    headers: {
+      "idempotency-key": idempotencyKey,
+    },
     multipart: {
       file: {
         name: fixture.file,

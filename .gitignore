@@ -18,4 +18,4 @@ out
 pnpm-lock.yaml.turbo-pruned
 
 # Terraform lambda packaging artifact (built by pnpm build)
-terraform/lambda-upload.zip
+terraform/*.zip

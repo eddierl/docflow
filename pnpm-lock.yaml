@@ -437,6 +437,34 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/lambda-cleanup:
+    dependencies:
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.1095.0
+        version: 3.1105.0
+      '@docflow/config':
+        specifier: workspace:*
+        version: link:../config
+      '@docflow/database':
+        specifier: workspace:*
+        version: link:../database
+      '@docflow/logger':
+        specifier: workspace:*
+        version: link:../logger
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.23.1
+        version: 4.23.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/lambda-upload:
     dependencies:
       '@aws-sdk/client-dynamodb':

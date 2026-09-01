@@ -95,3 +95,22 @@ resource "aws_lambda_permission" "api_gateway_invoke" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.docflow.execution_arn}/*/*"
 }
+
+
+# Lambda function - upload handler
+data "archive_file" "cleanup" {
+  type        = "zip"
+  source_dir  = "${path.module}/../packages/lambda-cleanup/dist"
+  output_path = "${path.module}/lambda-cleanup.zip"
+}
+
+resource "aws_lambda_function" "cleanup_idempotency" {
+  function_name = "cleanup-idempotency"
+  runtime       = "nodejs24.x"
+  handler       = "handler.handler"
+
+  filename = data.archive_file.cleanup.output_path
+
+  role = aws_iam_role.cleanup_idempotency.arn
+}
+

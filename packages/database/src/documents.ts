@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "./client.js";
-import { documents } from "./schema.js";
+import { documents, idempotencyKeys } from "./schema.js";
 
 export async function getDocument(id: string) {
   const [document] = await db
@@ -28,3 +28,23 @@ export async function updateDocumentStatus(
 
   return document;
 }
+
+export const getIdempotencyByKey = async (key: string) => {
+  const [document] = await db
+    .select()
+    .from(idempotencyKeys)
+    .where(eq(idempotencyKeys.key, key));
+
+  return document;
+};
+
+export const createIdempotency = async (key: string) => {
+  const now = Date.now();
+  const [document] = await db.insert(idempotencyKeys).values({
+    key,
+    completedAt: new Date(now),
+    expiresAt: new Date(now + 24 * 60 * 60 * 1000),
+  });
+
+  return document;
+};

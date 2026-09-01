@@ -37,10 +37,29 @@ export const outboxEvents = pgTable("outbox_events", {
   payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
 
   status: text("status")
-    .$type<"PENDING" | "SENT">()
+    .$type<"PENDING" | "PUBLISHING" | "SENT">()
     .notNull()
     .default("PENDING"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
+});
+
+export const idempotencyKeys = pgTable("idempotency_keys", {
+  key: text("key").primaryKey(),
+
+  // SHA-256 of the request so a key can only be replayed with the same body.
+  // requestHash: text("request_hash").notNull(),
+
+  // Null while the original request is still in flight.
+  documentId: uuid("document_id").references(() => documents.id, {
+    onDelete: "cascade",
+  }),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+
+  completedAt: timestamp("completed_at"),
+
+  // After this the key can be reclaimed for a fresh use of the same key.
+  expiresAt: timestamp("expires_at").notNull(),
 });

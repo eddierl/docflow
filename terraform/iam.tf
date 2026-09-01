@@ -113,3 +113,48 @@ resource "aws_iam_role_policy" "ecs_task_worker" {
     ]
   })
 }
+
+resource "aws_iam_role" "cleanup_scheduler" {
+  name = "cleanup-idempotency-scheduler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "scheduler.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cleanup_scheduler" {
+  role = aws_iam_role.cleanup_scheduler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "lambda:InvokeFunction"
+      ]
+      Resource = aws_lambda_function.cleanup_idempotency.arn
+    }]
+  })
+}
+
+resource "aws_iam_role" "cleanup_idempotency" {
+  name = "cleanup-idempotency-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
