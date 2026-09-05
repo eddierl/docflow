@@ -91,7 +91,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build lambdas
-        run: pnpm --filter "lambda*" build
+        run: pnpm --filter "@docflow/lambda*" build
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
