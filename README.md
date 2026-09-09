@@ -124,6 +124,10 @@ This project takes testing seriously, employing both unit/integration tests and 
 - **Unit & Integration:** Run `vitest` tests across packages and apps.
 - **E2E Testing:** Run Playwright tests located in `apps/e2e/`.
 
+### In CI
+
+GitHub Actions runs the same full stack for e2e: Terraform provisions local infra (queues, DLQ, ECR, ECS) against Floci, then `Dockerfile.worker` is built and pushed to Floci's registry and the document worker runs as an ECS task with that image — the same deployment shape as `pnpm dev:docker`, so no separate CI-only worker startup path exists. API and outbox-worker still run as local processes. See [docs/ci.md](docs/ci.md) for the step-by-step flow and failure diagnostics.
+
 ## 📈 Key Patterns Demonstrated
 
 - **Transactional Outbox Pattern:** Ensures reliable message publishing to SQS even if the database transaction commits but the network request to AWS fails.

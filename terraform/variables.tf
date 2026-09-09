@@ -17,3 +17,13 @@ variable "cluster_name" {
 variable "worker_image_tag" {
   default = "latest"
 }
+
+variable "worker_host" {
+  description = "Address the worker container uses to reach local Postgres and Floci"
+  default     = "host.docker.internal"
+}
+
+variable "worker_database_name" {
+  description = "Database name used in the worker DATABASE_URL"
+  default     = "docflow"
+}

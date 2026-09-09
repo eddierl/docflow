@@ -24,43 +24,43 @@ resource "aws_ecs_task_definition" "worker" {
       image     = "${aws_ecr_repository.worker.repository_url}:${var.worker_image_tag}"
       essential = true
       environment = [
-      {
-        name  = "SQS_QUEUE_URL"
-        value = "http://host.docker.internal:4566/000000000000/docflow-document-processing"
-      },
-      {
-        name  = "SNS_TOPIC_ARN"
-        value = "arn:aws:sns:us-east-1:000000000000:docflow-events"
-      },
-      {
-        name  = "DATABASE_URL"
-        value = "postgres://docflow:docflow@host.docker.internal:5432/docflow"
-      },
-      {
-        name  = "AWS_ENDPOINT"
-        value = "http://host.docker.internal:4566"
-      },
-      {
-        name  = "AWS_REGION"
-        value = "us-east-1"
-      },
-      {
-        name  = "AWS_ACCESS_KEY_ID"
-        value = "test"
-      },
-      {
-        name  = "AWS_SECRET_ACCESS_KEY"
-        value = "test"
-      },
-      {
-        name  = "S3_BUCKET"
-        value = "docflow-uploads"
-      },
-      {
-        name  = "DYNAMODB_TABLE_NAME"
-        value = "Documents"
-      }
-    ]
+        {
+          name  = "SQS_QUEUE_URL"
+          value = "http://${var.worker_host}:4566/000000000000/docflow-document-processing"
+        },
+        {
+          name  = "SNS_TOPIC_ARN"
+          value = "arn:aws:sns:us-east-1:000000000000:docflow-events"
+        },
+        {
+          name  = "DATABASE_URL"
+          value = "postgres://docflow:docflow@${var.worker_host}:5432/${var.worker_database_name}"
+        },
+        {
+          name  = "AWS_ENDPOINT"
+          value = "http://${var.worker_host}:4566"
+        },
+        {
+          name  = "AWS_REGION"
+          value = "us-east-1"
+        },
+        {
+          name  = "AWS_ACCESS_KEY_ID"
+          value = "test"
+        },
+        {
+          name  = "AWS_SECRET_ACCESS_KEY"
+          value = "test"
+        },
+        {
+          name  = "S3_BUCKET"
+          value = "docflow-uploads"
+        },
+        {
+          name  = "DYNAMODB_TABLE_NAME"
+          value = "Documents"
+        }
+      ]
       portMappings = [
         {
           containerPort = 3001

@@ -18,6 +18,7 @@ services:
     container_name: docflow-floci
     ports:
       - "4566:4566"
+      - "5100:5100" # container registry used for ECS worker images
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
