@@ -136,28 +136,27 @@ jobs:
 
       - name: Start Floci (AWS Emulator)
         run: |
+          # Pinned by digest: `:latest` drifts, and newer builds run ECR as a separate
+          # backing container (`floci-ecr-registry`) that binds the host's 0.0.0.0:5100
+          # itself, so the floci container must NOT publish 5100 (the port conflict
+          # kills ECR). The registry still answers at 127.0.0.1:5100 for pushes.
           docker run -d \
             --name floci \
             -p 4566:4566 \
-            -p 5100:5100 \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -e FLOCI_DEFAULT_REGION=us-east-1 \
             -u root \
-            floci/floci:latest
+            floci/floci@sha256:4e451c39c7bb88e3cd4f87e8fc0c25d5b47695a51185d521e2241fa00486e8eb
 
       - name: Wait for Floci
         run: |
+          # `/_health` is proxied to S3 and 404s until buckets exist, so any HTTP
+          # response counts as up (bare curl, no -f). The registry is checked in a
+          # later step: Floci spawns its backing registry container on the first ECR
+          # operation, which has not happened yet.
           for i in $(seq 1 30); do
             if curl -s http://localhost:4566/_health > /dev/null 2>&1; then
               echo "Floci is ready"
-              break
-            fi
-            sleep 2
-          done
-          # The container registry (port 5100) must be up before we push the worker image.
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:5100/v2/ > /dev/null 2>&1; then
-              echo "Floci registry is ready"
               break
             fi
             sleep 2
@@ -166,6 +165,8 @@ jobs:
       - name: Provision ECR repository
         run: |
           terraform -chdir=terraform init -input=false
+          # CreateRepository is the first ECR operation, which makes Floci lazily
+          # spawn its backing registry container bound to the host's 0.0.0.0:5100.
           terraform -chdir=terraform apply -auto-approve -input=false -target=aws_ecr_repository.worker
           REPO_URL="$(terraform -chdir=terraform output -raw ecr_repository_url)"
           echo "Worker image repository: ${REPO_URL}"
@@ -177,6 +178,26 @@ jobs:
           AWS_REGION: us-east-1
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
+
+      - name: Wait for Floci registry
+        run: |
+          # Gate on the backing registry before pushing: a registry failure should
+          # fail the run in a minute here, not after hours of retries downstream.
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5100/v2/ > /dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != "1" ]; then
+            echo "::error::Floci registry (127.0.0.1:5100/v2/) did not come up"
+            docker ps -a
+            docker logs floci 2>&1 | tail -n 50 || true
+            exit 1
+          fi
+          echo "Floci registry is ready"
 
       - name: Build & push worker image
         run: |

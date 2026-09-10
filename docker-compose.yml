@@ -18,7 +18,11 @@ services:
     container_name: docflow-floci
     ports:
       - "4566:4566"
-      - "5100:5100" # container registry used for ECS worker images
+    # 5100 is intentionally NOT published: Floci runs its ECR registry as a
+    # separate `floci-ecr-registry` container bound to the host's 0.0.0.0:5100,
+    # spawned on the first ECR operation; publishing 5100 here conflicts with it.
+    # The registry still answers at 127.0.0.1:5100 — run `pnpm run terraform:apply`
+    # before `pnpm worker:docker:push` in a fresh session so it exists.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
