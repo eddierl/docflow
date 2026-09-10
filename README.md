@@ -100,10 +100,11 @@ pnpm worker:docker:status    # describe the worker service
 
 The container gets its environment from the ECS task definition (`terraform/ecs.tf`), not from a `.env` file — `.env` is excluded from the image via `.dockerignore`, and the task definition points `DATABASE_URL` / `AWS_ENDPOINT` at `host.docker.internal` so the container reaches your local Postgres and Floci.
 
-### Two floci quirks to know about
+### Floci quirks to know about
 
 - **Digest pinning:** ECS snapshots the `:latest` tag to a concrete image digest when a task starts. Pushing a new `:latest` does *not* update the running task on its own — that's why `worker:docker:deploy` does a desired-count 0 → stable → 1 restart, which makes the service re-resolve the tag.
 - **Registry address:** `docker login localhost:5100` can hang on macOS (IPv6 `::1` path in the Docker CLI). The scripts therefore push to `127.0.0.1:5100` and re-tag the image as `000000000000.dkr.ecr.us-east-1.localhost:5100/docflow-worker:latest` — the exact image name the task definition references.
+- **Registry container:** Floci runs its ECR registry as a separate `floci-ecr-registry` container bound to the host's `0.0.0.0:5100`, spawned on the *first* ECR operation (not at startup). So port `5100` must not be published on the `floci` container itself (Docker fails with "port is already allocated" and ECR dies), and in a fresh session run `pnpm run infra` + `pnpm run terraform:apply` before `pnpm worker:docker:push` so the registry exists. If floci's log shows `Failed to adopt existing ECR registry container`, a stale `floci-ecr-registry` is left over from an earlier session — `docker rm floci-ecr-registry` fixes it.
 
 ### Running both modes at once
 
@@ -123,6 +124,10 @@ This project takes testing seriously, employing both unit/integration tests and 
 
 - **Unit & Integration:** Run `vitest` tests across packages and apps.
 - **E2E Testing:** Run Playwright tests located in `apps/e2e/`.
+
+### In CI
+
+GitHub Actions runs the same full stack for e2e: Terraform provisions local infra (queues, DLQ, ECR, ECS) against Floci, then `Dockerfile.worker` is built and pushed to Floci's registry and the document worker runs as an ECS task with that image — the same deployment shape as `pnpm dev:docker`, so no separate CI-only worker startup path exists. API and outbox-worker still run as local processes. See [docs/ci.md](docs/ci.md) for the step-by-step flow and failure diagnostics.
 
 ## 📈 Key Patterns Demonstrated
 

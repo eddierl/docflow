@@ -98,18 +98,62 @@ jobs:
         with:
           terraform_version: 1.15.8
 
+      - name: Configure Docker for the Floci registry
+        run: |
+          # Floci's container registry speaks plain HTTP on 127.0.0.1:5100, which the
+          # Docker daemon refuses unless the registry is listed as insecure.
+          # Merge into the existing daemon.json rather than replacing it, so runner
+          # defaults (e.g. add-host for host.docker.internal) are preserved.
+          sudo python3 - <<'PYEOF'
+          import json
+          path = "/etc/docker/daemon.json"
+          try:
+              with open(path) as f:
+                  cfg = json.load(f)
+          except (FileNotFoundError, ValueError):
+              cfg = {}
+          regs = list(cfg.get("insecure-registries") or [])
+          for r in ("127.0.0.1:5100", "000000000000.dkr.ecr.us-east-1.localhost:5100"):
+              if r not in regs:
+                  regs.append(r)
+          cfg["insecure-registries"] = regs
+          with open(path, "w") as f:
+              json.dump(cfg, f, indent=2)
+          PYEOF
+          # glibc does not resolve *.localhost hostnames; map the ECR URL to the local registry.
+          grep -q "000000000000.dkr.ecr.us-east-1.localhost" /etc/hosts || \
+            echo "127.0.0.1 000000000000.dkr.ecr.us-east-1.localhost" | sudo tee -a /etc/hosts
+          sudo systemctl restart docker
+          # The daemon restart stops the job's service containers; bring them back.
+          for c in $(docker ps -aq --filter status=exited); do docker start "$c"; done
+          PG=$(docker ps -aq --filter ancestor=postgres:16 | head -n 1)
+          if [ -n "$PG" ]; then
+            for i in $(seq 1 30); do
+              docker exec "$PG" pg_isready -U docflow > /dev/null 2>&1 && break
+              sleep 2
+            done
+          fi
+
       - name: Start Floci (AWS Emulator)
         run: |
+          # Pinned by digest: `:latest` drifts, and newer builds run ECR as a separate
+          # backing container (`floci-ecr-registry`) that binds the host's 0.0.0.0:5100
+          # itself, so the floci container must NOT publish 5100 (the port conflict
+          # kills ECR). The registry still answers at 127.0.0.1:5100 for pushes.
           docker run -d \
             --name floci \
             -p 4566:4566 \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -e FLOCI_DEFAULT_REGION=us-east-1 \
             -u root \
-            floci/floci:latest
+            floci/floci@sha256:4e451c39c7bb88e3cd4f87e8fc0c25d5b47695a51185d521e2241fa00486e8eb
 
       - name: Wait for Floci
         run: |
+          # `/_health` is proxied to S3 and 404s until buckets exist, so any HTTP
+          # response counts as up (bare curl, no -f). The registry is checked in a
+          # later step: Floci spawns its backing registry container on the first ECR
+          # operation, which has not happened yet.
           for i in $(seq 1 30); do
             if curl -s http://localhost:4566/_health > /dev/null 2>&1; then
               echo "Floci is ready"
@@ -118,12 +162,135 @@ jobs:
             sleep 2
           done
 
+      - name: Provision ECR repository
+        run: |
+          terraform -chdir=terraform init -input=false
+          # CreateRepository is the first ECR operation, which makes Floci lazily
+          # spawn its backing registry container bound to the host's 0.0.0.0:5100.
+          terraform -chdir=terraform apply -auto-approve -input=false -target=aws_ecr_repository.worker
+          REPO_URL="$(terraform -chdir=terraform output -raw ecr_repository_url)"
+          echo "Worker image repository: ${REPO_URL}"
+          echo "REPO_URL=${REPO_URL}" >> "$GITHUB_ENV"
+          # A unique tag per run avoids Floci's digest-pinning of :latest.
+          echo "IMAGE_TAG=e2e-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+        env:
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Wait for Floci registry
+        run: |
+          # Gate on the backing registry before pushing: a registry failure should
+          # fail the run in a minute here, not after hours of retries downstream.
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5100/v2/ > /dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != "1" ]; then
+            echo "::error::Floci registry (127.0.0.1:5100/v2/) did not come up"
+            docker ps -a
+            docker logs floci 2>&1 | tail -n 50 || true
+            exit 1
+          fi
+          echo "Floci registry is ready"
+
+      - name: Build & push worker image
+        run: |
+          # The 127.0.0.1 address is used for docker push; the exact ECR URL from the
+          # task definition is also tagged locally so Floci can resolve the image name
+          # from the local image store.
+          docker build -f Dockerfile.worker \
+            -t "127.0.0.1:5100/docflow-worker:${IMAGE_TAG}" \
+            -t "${REPO_URL}:${IMAGE_TAG}" \
+            .
+          aws ecr get-login-password --endpoint-url http://localhost:4566 | docker login -u AWS --password-stdin 127.0.0.1:5100
+          docker push "127.0.0.1:5100/docflow-worker:${IMAGE_TAG}"
+        env:
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
       - name: Provision local infra
         run: |
           terraform -chdir=terraform init -input=false
           terraform -chdir=terraform apply -auto-approve -input=false
         env:
           TF_VAR_bucket_name: docflow-uploads
+          TF_VAR_worker_image_tag: ${{ env.IMAGE_TAG }}
+          TF_VAR_worker_database_name: docflow-test
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Detect worker host address
+        run: |
+          # The worker task must reach the runner's published ports (Postgres, Floci).
+          # Floci may place the task container on the host, bridge, or a custom
+          # network, so find out which address actually reaches the host from inside it.
+          set -u
+          CID=""
+          for i in $(seq 1 12); do
+            CID="$(docker ps -a --format '{{.ID}} {{.Image}}' | awk 'index($0, "docflow-worker") {print $1; exit}')"
+            [ -n "$CID" ] && break
+            sleep 15
+          done
+          if [ -z "$CID" ]; then
+            echo "::error::Could not find the ECS worker container for image ${REPO_URL}"
+            docker ps -a
+            docker logs floci 2>&1 | tail -n 50 || true
+            exit 1
+          fi
+          NET="$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$CID")"
+          echo "Worker container ${CID} is on network '${NET}'"
+          if docker run --rm --network "$NET" alpine:3.20 getent hosts host.docker.internal > /dev/null 2>&1; then
+            HOST="host.docker.internal"
+          elif [ "$NET" = "host" ]; then
+            HOST="localhost"
+          else
+            HOST="$(docker network inspect -f '{{(index .IPAM.Config 0).Gateway}}' "$NET" 2> /dev/null || true)"
+            if [ -z "$HOST" ] || [ "$HOST" = "<no value>" ]; then
+              HOST="localhost"
+            fi
+          fi
+          echo "Worker will use '${HOST}' to reach the host"
+          echo "WORKER_HOST=${HOST}" >> "$GITHUB_ENV"
+
+      - name: Re-apply worker with detected host
+        if: env.WORKER_HOST != 'host.docker.internal'
+        run: |
+          echo "Task definition used the default host; re-applying with '${{ env.WORKER_HOST }}'"
+          terraform -chdir=terraform apply -auto-approve -input=false \
+            -target=aws_ecs_task_definition.worker \
+            -target=aws_ecs_service.worker
+
+          # Floci does not roll a service when the task definition changes, so restart
+          # it the same way `pnpm worker:docker:deploy` does (desired count 0 -> 1).
+          wait_running() {
+            local count
+            for _ in $(seq 1 60); do
+              count="$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text)"
+              [ "$count" = "$1" ] && return 0
+              sleep 5
+            done
+            return 1
+          }
+
+          aws ecs update-service --cluster docflow --service docflow-worker --desired-count 0 --endpoint-url http://localhost:4566
+          wait_running 0 || { docker ps -a; docker logs floci 2>&1 | tail -n 50 || true; exit 1; }
+          aws ecs update-service --cluster docflow --service docflow-worker --desired-count 1 --endpoint-url http://localhost:4566
+          wait_running 1 || { docker ps -a; docker logs floci 2>&1 | tail -n 50 || true; exit 1; }
+          echo "Worker service is running with the detected host"
+        env:
+          TF_VAR_worker_image_tag: ${{ env.IMAGE_TAG }}
+          TF_VAR_worker_database_name: docflow-test
+          TF_VAR_worker_host: ${{ env.WORKER_HOST }}
           AWS_ENDPOINT: http://localhost:4566
           AWS_REGION: us-east-1
           AWS_ACCESS_KEY_ID: test
@@ -140,13 +307,11 @@ jobs:
           pnpm --filter @docflow/api exec tsx src/index.ts &
           API_PID=$!
 
-          # Start document worker in background
-          pnpm --filter @docflow/worker exec tsx src/index.ts &
-          WORKER_PID=$!
-
           # Start outbox worker in background
           pnpm --filter @docflow/outbox-worker exec tsx src/index.ts &
           OUTBOX_PID=$!
+
+          # The document worker runs as the ECS task started by Terraform above (no local process needed).
 
           # Wait for API to be ready
           for i in $(seq 1 30); do
@@ -157,10 +322,27 @@ jobs:
             sleep 2
           done
 
-          # Wait for document worker health endpoint
-          for i in $(seq 1 30); do
+          # Wait for the document worker ECS task to be running
+          RUNNING="$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text)"
+          for i in $(seq 1 60); do
+            if [ "${RUNNING}" = "1" ]; then
+              echo "Document worker ECS task is running"
+              break
+            fi
+            sleep 5
+            RUNNING="$(aws ecs describe-services --cluster docflow --services docflow-worker --endpoint-url http://localhost:4566 --query 'services[0].runningCount' --output text)"
+          done
+          if [ "${RUNNING}" != "1" ]; then
+            echo "Document worker ECS task did not reach running state" >&2
+            docker ps -a
+            docker logs floci 2>&1 | tail -n 50 || true
+            exit 1
+          fi
+
+          # Best effort: Floci may not publish the task's health port to the host.
+          for i in $(seq 1 15); do
             if curl -s http://localhost:3001 > /dev/null 2>&1; then
-              echo "Document worker is ready"
+              echo "Document worker health endpoint is reachable"
               break
             fi
             sleep 2
@@ -174,7 +356,7 @@ jobs:
           pnpm run test
 
           # Stop all servers
-          kill $API_PID $WORKER_PID $OUTBOX_PID 2>/dev/null || true
+          kill $API_PID $OUTBOX_PID 2>/dev/null || true
         env:
           DATABASE_URL: postgresql://docflow:docflow@localhost:5432/docflow-test
           SQS_QUEUE_URL: http://localhost:4566/000000000000/docflow-document-processing
